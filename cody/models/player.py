@@ -1,0 +1,1 @@
+"""Future player domain model."""

@@ -1,0 +1,1 @@
+"""Future persistent data adapter."""

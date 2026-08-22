@@ -1,0 +1,1 @@
+"""Member welcome feature."""

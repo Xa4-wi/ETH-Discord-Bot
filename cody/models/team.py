@@ -1,0 +1,1 @@
+"""Future team domain model."""

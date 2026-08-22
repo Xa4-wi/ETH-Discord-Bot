@@ -1,0 +1,1 @@
+"""Future competition announcement feature."""

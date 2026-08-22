@@ -1,0 +1,1 @@
+"""Discord layouts for announcements."""
