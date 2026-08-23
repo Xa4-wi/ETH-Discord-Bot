@@ -15,6 +15,7 @@ EXTENSIONS = (
     "cody.features.system.cog",
     "cody.features.server_stats.cog",
     "cody.features.welcome.cog",
+    "cody.features.tickets.cog",
 )
 
 

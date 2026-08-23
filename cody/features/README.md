@@ -13,6 +13,7 @@ separate from unrelated features. Every feature folder must contain a
 | System | Active | Yes | `area: discord` | [`system/README.md`](system/README.md) |
 | Welcome | Active | Yes | `area: welcome` | [`welcome/README.md`](welcome/README.md) |
 | Server statistics | Active | Yes | `area: discord`, `area: backend` | [`server_stats/README.md`](server_stats/README.md) |
+| Tickets | Active | Yes | `area: discord`, `area: backend` | [`tickets/README.md`](tickets/README.md) |
 | Admin | Planned | No | `area: admin` | [`admin/README.md`](admin/README.md) |
 | Announcements | Planned | No | `area: discord` | [`announcements/README.md`](announcements/README.md) |
 | Ladder | Planned | No | `area: ladder` | [`ladder/README.md`](ladder/README.md) |

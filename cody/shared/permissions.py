@@ -5,7 +5,7 @@ from __future__ import annotations
 import discord
 from discord import app_commands
 
-from cody.config import ADMIN_ROLE_ID, PARTICIPANT_ROLE_ID
+from cody.config import ADMIN_ROLE_ID, ORGANIZER_ROLE_ID, PARTICIPANT_ROLE_ID
 
 
 class CodyRoleRequired(app_commands.CheckFailure):
@@ -21,6 +21,15 @@ def member_has_role(user: discord.User | discord.Member, role_id: int) -> bool:
 
     roles = getattr(user, "roles", None)
     return roles is not None and any(role.id == role_id for role in roles)
+
+
+def is_ticket_staff(user: discord.User | discord.Member) -> bool:
+    """Return whether a member may claim, release, or resolve tickets."""
+
+    return member_has_role(user, ADMIN_ROLE_ID) or member_has_role(
+        user,
+        ORGANIZER_ROLE_ID,
+    )
 
 
 async def participant_access_check(interaction: discord.Interaction) -> bool:

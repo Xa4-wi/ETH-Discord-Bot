@@ -68,10 +68,15 @@ Cody authorizes application commands by Discord role ID:
 | --- | ---: | --- |
 | Participant | `1541112817476702238` | `CODY_PARTICIPANT_ROLE_ID` |
 | Admin | `1540821890510229571` | `CODY_ADMIN_ROLE_ID` |
+| Organiser | `1540821070213292125` | `CODY_ORGANIZER_ROLE_ID` |
 
 Participant-facing commands accept either the Participant or Admin role. Admin
 operations and diagnostics accept only the configured Admin role. Discord's
 generic Administrator permission does not bypass these role-ID checks.
+
+Ticket management is the exception to the two command levels: both the Admin
+and Organiser roles can claim, release, and resolve private support tickets from
+their buttons. `/tickets setup` and `/tickets status` remain Admin-only.
 
 Admin commands are also marked with Discord's Administrator visibility default,
 so they are hidden from ordinary roles in the command picker. The configured
@@ -168,6 +173,21 @@ The feature uses static competition values by default. Set
 `CODY_STATS_PROVIDER=http` and `CODY_STATS_ENDPOINT` to use the optional
 [`docs/api/server-stats.json`](docs/api/server-stats.json) mock endpoint or the
 future official aggregate API.
+
+## Support tickets
+
+Cody maintains an **Open Ticket** panel in channel `1541132121551274154` and
+creates private ticket channels under category `1541137977613488149`.
+Participants submit a category and short form; Admins and Organisers can claim,
+release, and resolve the resulting ticket.
+
+This first version has no local database and saves no transcripts. Resolution
+marks the temporary ticket `RESOLVED`, sends safe metadata to Cody's operations
+log, and deletes the private channel. The asynchronous repository boundary is
+ready for a later official website-backend integration, where SQLite and durable
+ticket status should live. Configuration, permissions, limitations, and the
+backend hand-off are documented in
+[`cody/features/tickets/README.md`](cody/features/tickets/README.md).
 
 ## Website
 
