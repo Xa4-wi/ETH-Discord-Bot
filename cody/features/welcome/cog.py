@@ -8,7 +8,7 @@ from discord.ext import commands
 
 from cody.config import WELCOME_CHANNEL_ID
 from cody.features.welcome.service import send_welcome_message
-from cody.shared.permissions import administrator_only
+from cody.shared.permissions import admin_only
 
 
 LOGGER = logging.getLogger(__name__)
@@ -48,8 +48,7 @@ class WelcomeCog(commands.Cog):
         name="test_welcome",
         description="Test Cody's welcome message in the configured welcome channel.",
     )
-    @app_commands.default_permissions(administrator=True)
-    @administrator_only()
+    @admin_only()
     async def test_welcome(self, interaction: discord.Interaction) -> None:
         if not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(

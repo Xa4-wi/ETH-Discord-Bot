@@ -7,6 +7,7 @@
 - Project label: `area: welcome`
 - Event: Discord member join
 - Admin command: `/test_welcome`
+- Required command role: Admin (`1540821890510229571` by default)
 
 ## Purpose
 
@@ -76,8 +77,10 @@ Configuration variables:
 - `CODY_WELCOME_CHANNEL_ID`
 - `CODY_RULES_CHANNEL_ID`
 - `CODY_WORLD_CHANNEL_ID`
+- `CODY_ADMIN_ROLE_ID`
 
 Cody needs View Channel, Send Messages, Embed Links, Attach Files, and Read
-Message History in the welcome channel. `/test_welcome` is administrator-only
-and its status response is ephemeral. Tokens, private profile data, and rendered
-cards are never written to disk by this feature.
+Message History in the welcome channel. `/test_welcome` requires Cody's
+configured Admin role and its status response is ephemeral. Discord's generic
+Administrator flag alone does not grant command access. Tokens, private profile
+data, and rendered cards are never written to disk by this feature.

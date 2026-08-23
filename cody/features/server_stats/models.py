@@ -63,3 +63,33 @@ class RefreshResult:
     missing_channel_ids: tuple[int, ...]
     failed_channel_ids: tuple[int, ...]
     provider_error: str | None = None
+
+
+@dataclass(frozen=True)
+class StatChannelPermission:
+    """Cody's effective permissions for one statistics display channel."""
+
+    channel_id: int
+    channel_name: str | None
+    category_name: str | None
+    view_channel: bool
+    manage_channels: bool
+
+    @property
+    def ready(self) -> bool:
+        return self.view_channel and self.manage_channels
+
+
+@dataclass(frozen=True)
+class StatPermissionReport:
+    """Cody's resolved identity, roles, and effective channel permissions."""
+
+    bot_member_id: int | None
+    bot_role_ids: tuple[int, ...]
+    channels: tuple[StatChannelPermission, ...]
+
+    @property
+    def ready(self) -> bool:
+        return self.bot_member_id is not None and all(
+            channel.ready for channel in self.channels
+        )

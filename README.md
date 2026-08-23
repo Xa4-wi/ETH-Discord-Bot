@@ -60,6 +60,19 @@ powershell -ExecutionPolicy Bypass -File ./scripts/start-bot.ps1
 
 For member welcome events to work, enable **Server Members Intent** for Cody in the Discord Developer Portal. Do not save the token in either launcher. Local `.env` files are ignored by Git as an additional safeguard, but this project does not require one.
 
+## Command access roles
+
+Cody authorizes application commands by Discord role ID:
+
+| Access level | Default role ID | Environment override |
+| --- | ---: | --- |
+| Participant | `1541112817476702238` | `CODY_PARTICIPANT_ROLE_ID` |
+| Admin | `1540821890510229571` | `CODY_ADMIN_ROLE_ID` |
+
+Participant-facing commands accept either the Participant or Admin role. Admin
+operations and diagnostics accept only the configured Admin role. Discord's
+generic Administrator permission does not bypass these role-ID checks.
+
 ## Cody message style
 
 Cody speaks as a concise network/interface AI. Traditional user-facing embeds should use `cody_embed` from `cody/shared/components.py` so titles, footer text, and colors remain consistent. Rich interfaces such as the welcome message use Discord Components V2 layouts from `cody/features/welcome/views.py`.

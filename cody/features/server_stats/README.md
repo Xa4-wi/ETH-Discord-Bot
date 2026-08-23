@@ -5,7 +5,8 @@
 - Lifecycle: **Active**
 - Extension loaded: **Yes** (`cody.features.server_stats.cog`)
 - Project labels: `area: discord`, `area: backend`, `area: integrations`
-- Admin commands: `/stats refresh`, `/stats debug`
+- Admin commands: `/stats refresh`, `/stats permissions`
+- Required command role: Admin (`1540821890510229571` by default)
 - Scheduled refresh: every ten minutes
 
 ## Purpose
@@ -30,7 +31,7 @@ are implemented and active.
 - Direct Discord authority for member and layer-role counts.
 - Replaceable aggregate providers for competition-owned values.
 - Periodic and staff-triggered refresh through one shared service.
-- Clear diagnostics without exposing provider credentials.
+- Effective permission reporting without exposing provider credentials.
 
 Detailed ladder, match, and team records remain in their own features; this
 feature consumes only the aggregate values needed for permanent displays.
@@ -48,7 +49,7 @@ feature consumes only the aggregate values needed for permanent displays.
 
 | Module | Responsibility |
 | --- | --- |
-| `cog.py` | Ten-minute task loop, permission diagnostics, and admin-only `/stats refresh` and `/stats debug` commands |
+| `cog.py` | Ten-minute task loop and admin-only `/stats refresh` and `/stats permissions` commands |
 | `service.py` | Discord counts, formatting, caching, and changed-name-only channel updates |
 | `providers.py` | Static and aggregate HTTP provider implementations |
 | `models.py` | Provider-neutral statistics, configuration, snapshot, and result models |
@@ -152,8 +153,10 @@ Configure the statistic voice channels as display-only:
 Cody:      View Channel = allowed, Manage Channels = allowed
 ```
 
-The `/stats` commands are restricted to server administrators, respond
-ephemerally, and do not expose provider credentials.
+The `/stats` commands require Cody's configured Admin role, respond ephemerally,
+and do not expose provider credentials. `/stats permissions`
+reports the resolved Cody member ID, assigned role IDs, and effective View
+Channel/Manage Channels result for every display channel.
 
 ## Extending the feature
 
@@ -169,8 +172,8 @@ each channel.
 - [x] Implement static and reusable-session HTTP providers.
 - [x] Cache the most recent successful competition statistics.
 - [x] Rename only channels whose desired name changed.
-- [x] Add ten-minute refresh and admin refresh/debug commands.
-- [x] Log Cody's effective channel permissions at startup and on `/stats debug`.
+- [x] Add ten-minute refresh and the admin-only `/stats refresh` command.
+- [x] Add `/stats permissions` for Cody's identity, roles, and effective access.
 - [x] Publish and document the optional aggregate mock endpoint.
 - [x] Load the extension and cover provider/service/configuration behavior.
 - [ ] Replace development values with the official aggregate endpoint when its
@@ -184,7 +187,7 @@ future response translation, invalid data rejection, bot exclusion, role counts,
 documented channel formats, Discord's name limit, changed-name-only edits, mock
 JSON compatibility, and cached fallback after provider failure.
 
-Before deployment, also run `/stats debug`, force `/stats refresh`, confirm every
+Before deployment, run `/stats permissions`, force `/stats refresh`, confirm every
 configured channel is display-only, and verify Cody can manage those channels
 without an Administrator role.
 
@@ -197,11 +200,12 @@ aggregate endpoint and verify cached-failure behavior before deployment.
 
 Cody requires View Channel and Manage Channels for all eight display channels,
 while ordinary members should have Connect and Speak denied. `/stats refresh`
-and `/stats debug` are administrator-only and ephemeral. Provider credentials,
+and `/stats permissions` require the configured Admin role and are ephemeral.
+Provider credentials,
 private backend responses, and Discord member details must not be added to the
-public mock JSON or debug output.
+public mock JSON or permission report.
 
-At startup and whenever `/stats debug` runs, Cody logs each configured channel's
-name, category, View Channel permission, and Manage Channels permission. Missing
-channels are reported by ID so configuration problems are visible without
-stopping the refresh loop.
+The permission report checks the permissions this feature actually uses: View
+Channel to resolve each display and Manage Channels to rename it. Administrator,
+Connect, and Speak are explicitly not required. Missing or invisible channels
+are reported by ID.

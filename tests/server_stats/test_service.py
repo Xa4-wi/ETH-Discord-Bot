@@ -10,10 +10,11 @@ from cody.features.server_stats.models import (
 from cody.features.server_stats.service import (
     ServerStatsService,
     build_channel_names,
+    check_stat_permissions,
     collect_discord_stats,
     configured_stat_channel_ids,
-    debug_stat_permissions,
     format_channel_name,
+    format_stat_permission_report,
 )
 
 
@@ -174,38 +175,35 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(channels[4].name, "⚔️ Active Teams · 27")
         self.assertEqual(len(channels[4].edit_calls), 1)
 
-    async def test_permission_debug_logs_access_and_missing_channels(self) -> None:
+    def test_permission_report_shows_effective_access_and_roles(self) -> None:
         channel = FakePermissionChannel(1, "Members", "Server Status")
         guild = FakeGuild([], [channel])
-        guild.me = SimpleNamespace(id=123)
+        guild.me = SimpleNamespace(
+            id=123,
+            roles=[SimpleNamespace(id=999), SimpleNamespace(id=1540833847225352242)],
+        )
 
-        with self.assertLogs(
-            "cody.features.server_stats.service",
-            level="INFO",
-        ) as captured:
-            await debug_stat_permissions(guild, [1, 2])
+        report = check_stat_permissions(guild, CONFIG)
+        output = format_stat_permission_report(report)
 
-        output = "\n".join(captured.output)
+        self.assertEqual(report.bot_member_id, 123)
+        self.assertIn(1540833847225352242, report.bot_role_ids)
         self.assertIn("Members", output)
-        self.assertIn("view=True", output)
-        self.assertIn("manage=False", output)
-        self.assertIn("category=Server Status", output)
-        self.assertIn("2: CHANNEL NOT FOUND", output)
+        self.assertIn("View Channel=yes", output)
+        self.assertIn("Manage Channels=no", output)
+        self.assertIn("[Server Status]", output)
+        self.assertIn("2 — not found or not visible", output)
+        self.assertIn("Administrator, Connect, Speak", output)
 
-    async def test_permission_debug_handles_missing_bot_member(self) -> None:
+    def test_permission_report_handles_missing_bot_member(self) -> None:
         guild = FakeGuild([], [])
         guild.me = None
 
-        with self.assertLogs(
-            "cody.features.server_stats.service",
-            level="INFO",
-        ) as captured:
-            await debug_stat_permissions(guild, [1])
+        report = check_stat_permissions(guild, CONFIG)
+        output = format_stat_permission_report(report)
 
-        self.assertIn(
-            "Cody's guild member could not be resolved",
-            "\n".join(captured.output),
-        )
+        self.assertFalse(report.ready)
+        self.assertIn("Cody's guild member could not be resolved", output)
 
 
 if __name__ == "__main__":

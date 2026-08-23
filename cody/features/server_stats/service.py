@@ -20,6 +20,8 @@ from cody.features.server_stats.models import (
     RefreshResult,
     ServerStatsConfig,
     ServerStatsSnapshot,
+    StatChannelPermission,
+    StatPermissionReport,
 )
 from cody.features.server_stats.providers import StatsProvider
 
@@ -37,7 +39,6 @@ class ServerStatsService:
     ) -> None:
         self.provider = provider
         self.config = config
-        self.last_snapshot: ServerStatsSnapshot | None = None
         self.last_successful_refresh: datetime | None = None
         self._last_competition_stats: CompetitionStats | None = None
         self._refresh_lock = asyncio.Lock()
@@ -90,7 +91,6 @@ class ServerStatsService:
                 else:
                     updated.append(channel_id)
 
-            self.last_snapshot = snapshot
             return RefreshResult(
                 snapshot=snapshot,
                 updated_channel_ids=tuple(updated),
@@ -144,38 +144,118 @@ def configured_stat_channel_ids(
     ]
 
 
-async def debug_stat_permissions(
+def check_stat_permissions(
     guild: discord.Guild,
-    channel_ids: list[int],
-) -> None:
-    """Log Cody's effective view/manage permissions for statistics channels."""
+    config: ServerStatsConfig = SERVER_STATS_CONFIG,
+) -> StatPermissionReport:
+    """Inspect the two effective permissions used to update stats channels."""
 
-    LOGGER.info("=== SERVER STAT PERMISSIONS ===")
     bot_member = guild.me
     if bot_member is None:
-        LOGGER.error(
-            "Cody's guild member could not be resolved in guild %s",
-            guild.id,
+        return StatPermissionReport(
+            bot_member_id=None,
+            bot_role_ids=(),
+            channels=tuple(
+                StatChannelPermission(
+                    channel_id=channel_id,
+                    channel_name=None,
+                    category_name=None,
+                    view_channel=False,
+                    manage_channels=False,
+                )
+                for channel_id in configured_stat_channel_ids(config)
+            ),
         )
-        LOGGER.info("===============================")
-        return
 
-    for channel_id in channel_ids:
+    channel_permissions: list[StatChannelPermission] = []
+    for channel_id in configured_stat_channel_ids(config):
         channel = guild.get_channel(channel_id)
         if channel is None:
-            LOGGER.error("%s: CHANNEL NOT FOUND", channel_id)
+            channel_permissions.append(
+                StatChannelPermission(
+                    channel_id=channel_id,
+                    channel_name=None,
+                    category_name=None,
+                    view_channel=False,
+                    manage_channels=False,
+                )
+            )
             continue
 
         permissions = channel.permissions_for(bot_member)
-        LOGGER.info(
-            "%-30s view=%s manage=%s category=%s",
-            channel.name,
-            permissions.view_channel,
-            permissions.manage_channels,
-            channel.category,
+        category = channel.category
+        channel_permissions.append(
+            StatChannelPermission(
+                channel_id=channel_id,
+                channel_name=channel.name,
+                category_name=(
+                    getattr(category, "name", str(category))
+                    if category is not None
+                    else None
+                ),
+                view_channel=permissions.view_channel,
+                manage_channels=permissions.manage_channels,
+            )
         )
 
-    LOGGER.info("===============================")
+    return StatPermissionReport(
+        bot_member_id=bot_member.id,
+        bot_role_ids=tuple(role.id for role in bot_member.roles),
+        channels=tuple(channel_permissions),
+    )
+
+
+def format_stat_permission_report(report: StatPermissionReport) -> str:
+    """Format an admin-only explanation of permissions used by this feature."""
+
+    lines = [
+        "CODY // STAT PERMISSIONS",
+        "",
+        "USED BY SERVER STATS",
+        "View Channel   locate each display channel",
+        "Manage Channels rename each display channel",
+        "",
+        "NOT REQUIRED",
+        "Administrator, Connect, Speak",
+        "",
+    ]
+
+    if report.bot_member_id is None:
+        lines.extend(
+            [
+                "❌ Cody's guild member could not be resolved.",
+                "Confirm the running token belongs to the bot in this server.",
+            ]
+        )
+    else:
+        role_ids = ", ".join(str(role_id) for role_id in report.bot_role_ids)
+        lines.extend(
+            [
+                f"Cody member ID: {report.bot_member_id}",
+                f"Assigned role IDs: {role_ids or 'none'}",
+                "",
+            ]
+        )
+        for channel in report.channels:
+            if channel.channel_name is None:
+                lines.append(f"❌ {channel.channel_id} — not found or not visible")
+                continue
+            marker = "✅" if channel.ready else "❌"
+            category = channel.category_name or "No category"
+            lines.append(f"{marker} {channel.channel_name} [{category}]")
+            lines.append(
+                "   "
+                f"View Channel={'yes' if channel.view_channel else 'no'} · "
+                f"Manage Channels={'yes' if channel.manage_channels else 'no'}"
+            )
+
+    lines.extend(
+        [
+            "",
+            "Gateway requirement: Server Members Intent",
+        ]
+    )
+    return "```text\n" + "\n".join(lines) + "\n```"
 
 
 def collect_discord_stats(
@@ -288,48 +368,6 @@ def format_channel_name(icon: str, label: str, value: Any) -> str:
     if len(name) <= DISCORD_CHANNEL_NAME_LIMIT:
         return name
     return f"{name[: DISCORD_CHANNEL_NAME_LIMIT - 1].rstrip()}…"
-
-
-def format_debug_snapshot(
-    snapshot: ServerStatsSnapshot,
-    *,
-    provider_name: str,
-    last_successful_refresh: datetime | None,
-) -> str:
-    """Create the admin-only diagnostic response."""
-
-    discord_stats = snapshot.discord
-    competition = snapshot.competition
-    competition_lines = (
-        [
-            f"Active Teams       {competition.active_teams}",
-            f"Matches Today      {competition.matches_today}",
-            f"Grid Output        {format_grid_output(competition.grid_output)}",
-            f"Ladder Leader      {competition.ladder_leader}",
-        ]
-        if competition is not None
-        else ["Competition Stats  unavailable"]
-    )
-    last_refresh = (
-        last_successful_refresh.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-        if last_successful_refresh is not None
-        else "never"
-    )
-
-    lines = [
-        "CODY // SERVER STATS",
-        "",
-        f"Members            {discord_stats.members}",
-        f"Umbral City        {discord_stats.umbral_city}",
-        f"The Lumen Belt     {discord_stats.lumen_belt}",
-        f"Helio-Citadels     {discord_stats.helio_citadels}",
-        "",
-        *competition_lines,
-        "",
-        f"Provider           {provider_name}",
-        f"Last Success       {last_refresh}",
-    ]
-    return "```text\n" + "\n".join(lines) + "\n```"
 
 
 def _count_members_with_role(members: tuple[Any, ...], role_id: int) -> int:

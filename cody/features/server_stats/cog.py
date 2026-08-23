@@ -12,15 +12,13 @@ from cody.features.server_stats.constants import (
     REFRESH_INTERVAL_MINUTES,
     SERVER_STATS_CONFIG,
 )
-from cody.features.server_stats.models import ServerStatsSnapshot
 from cody.features.server_stats.providers import create_stats_provider
 from cody.features.server_stats.service import (
     ServerStatsService,
-    configured_stat_channel_ids,
-    debug_stat_permissions,
-    format_debug_snapshot,
+    check_stat_permissions,
+    format_stat_permission_report,
 )
-from cody.shared.permissions import administrator_only
+from cody.shared.permissions import admin_only
 
 
 LOGGER = logging.getLogger(__name__)
@@ -55,16 +53,12 @@ class ServerStatsCog(
     @refresh_stats_task.before_loop
     async def before_refresh_stats(self) -> None:
         await self.bot.wait_until_ready()
-        guild = self._target_guild()
-        if guild is not None:
-            await debug_stat_permissions(guild, configured_stat_channel_ids())
 
     @app_commands.command(
         name="refresh",
         description="Immediately refresh all configured server statistics.",
     )
-    @app_commands.default_permissions(administrator=True)
-    @administrator_only()
+    @admin_only()
     async def refresh(self, interaction: discord.Interaction) -> None:
         guild = self._target_guild()
         if guild is None or interaction.guild_id != guild.id:
@@ -84,12 +78,11 @@ class ServerStatsCog(
         await interaction.edit_original_response(content=message)
 
     @app_commands.command(
-        name="debug",
-        description="Show the current server-statistics snapshot.",
+        name="permissions",
+        description="Check the permissions Cody uses for statistics channels.",
     )
-    @app_commands.default_permissions(administrator=True)
-    @administrator_only()
-    async def debug(self, interaction: discord.Interaction) -> None:
+    @admin_only()
+    async def permissions(self, interaction: discord.Interaction) -> None:
         guild = self._target_guild()
         if guild is None or interaction.guild_id != guild.id:
             await interaction.response.send_message(
@@ -98,26 +91,9 @@ class ServerStatsCog(
             )
             return
 
-        await debug_stat_permissions(guild, configured_stat_channel_ids())
-        snapshot = self.service.last_snapshot
-        if snapshot is None:
-            await interaction.response.defer(ephemeral=True)
-            snapshot = (await self.service.refresh(guild)).snapshot
-            await interaction.edit_original_response(
-                content=self._debug_content(snapshot)
-            )
-            return
-
         await interaction.response.send_message(
-            self._debug_content(snapshot),
+            format_stat_permission_report(check_stat_permissions(guild)),
             ephemeral=True,
-        )
-
-    def _debug_content(self, snapshot: ServerStatsSnapshot) -> str:
-        return format_debug_snapshot(
-            snapshot,
-            provider_name=type(self.provider).__name__,
-            last_successful_refresh=self.service.last_successful_refresh,
         )
 
     def _target_guild(self) -> discord.Guild | None:
