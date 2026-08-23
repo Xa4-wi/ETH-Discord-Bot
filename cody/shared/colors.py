@@ -9,5 +9,5 @@ class CodyColor(IntEnum):
     WARNING = 0xD8A14A
     ERROR = 0x8C3F22
     UMBRAL = 0x244D3B
-    MIDLEVELS = 0x8F8066
+    LUMEN_BELT = 0x8F8066
     CITADELS = 0xF1C75B

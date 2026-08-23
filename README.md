@@ -103,7 +103,7 @@ Cody speaks as a concise network/interface AI. Traditional user-facing embeds sh
 | Warning | Rust `#D8A14A` | Deadlines and recoverable issues |
 | Error | Dark rust `#8C3F22` | Invalid actions and failures |
 | Umbral | Deep green `#244D3B` | Umbral rank messages |
-| Midlevels | Amber-gray `#8F8066` | Midlevel rank messages |
+| The Lumen Belt | Amber-gray `#8F8066` | The Lumen Belt rank messages |
 | Citadels | Gold `#F1C75B` | Citadel rank messages |
 
 Prefer short interface-style titles such as `ARRIVAL REGISTERED`, `TEAM REGISTERED`, `RANK UPDATED`, and `SYSTEM NOTICE`. Keep functional text clear and restrained, with occasional in-world flavor.
