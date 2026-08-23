@@ -158,6 +158,11 @@ and do not expose provider credentials. `/stats permissions`
 reports the resolved Cody member ID, assigned role IDs, and effective View
 Channel/Manage Channels result for every display channel.
 
+The `/stats` group uses Discord's Administrator visibility default so ordinary
+roles do not see its subcommands in the command picker. This default is applied
+to the group because Discord ignores visibility defaults placed on subcommands.
+The configured Admin-role runtime check remains authoritative.
+
 ## Extending the feature
 
 Add backend fields to `CompetitionStats`, translate them inside the provider,

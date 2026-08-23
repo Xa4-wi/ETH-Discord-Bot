@@ -84,3 +84,7 @@ Message History in the welcome channel. `/test_welcome` requires Cody's
 configured Admin role and its status response is ephemeral. Discord's generic
 Administrator flag alone does not grant command access. Tokens, private profile
 data, and rendered cards are never written to disk by this feature.
+
+The command uses Discord's Administrator visibility default so participant roles
+do not see it in the command picker. Server owners can override visibility under
+the Cody integration, but the configured Admin-role check still runs.

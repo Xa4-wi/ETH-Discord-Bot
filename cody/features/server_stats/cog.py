@@ -24,6 +24,7 @@ from cody.shared.permissions import admin_only
 LOGGER = logging.getLogger(__name__)
 
 
+@app_commands.default_permissions(administrator=True)
 class ServerStatsCog(
     commands.GroupCog,
     group_name="stats",

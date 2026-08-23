@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 import unittest
 
+import discord
+
 from cody.config import ADMIN_ROLE_ID, PARTICIPANT_ROLE_ID
 from cody.features.server_stats.cog import ServerStatsCog
 from cody.features.system.cog import SystemCog
@@ -91,6 +93,17 @@ class CodyPermissionTests(unittest.IsolatedAsyncioTestCase):
                 "permissions": ["admin_access_check"],
             },
         )
+
+    def test_admin_commands_have_discord_visibility_defaults(self) -> None:
+        administrator = discord.Permissions(administrator=True)
+        welcome_command = WelcomeCog.__cog_app_commands__[0]
+        stats_group_permissions = getattr(
+            ServerStatsCog,
+            "__discord_app_commands_default_permissions__",
+        )
+
+        self.assertEqual(welcome_command.default_permissions, administrator)
+        self.assertEqual(stats_group_permissions, administrator)
 
 
 if __name__ == "__main__":

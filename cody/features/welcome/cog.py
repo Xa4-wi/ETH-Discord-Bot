@@ -48,6 +48,7 @@ class WelcomeCog(commands.Cog):
         name="test_welcome",
         description="Test Cody's welcome message in the configured welcome channel.",
     )
+    @app_commands.default_permissions(administrator=True)
     @admin_only()
     async def test_welcome(self, interaction: discord.Interaction) -> None:
         if not isinstance(interaction.user, discord.Member):

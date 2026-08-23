@@ -9,6 +9,7 @@ separate from unrelated features. Every feature folder must contain a
 
 | Feature | Status | Loaded by Cody | Project label | Documentation |
 | --- | --- | --- | --- | --- |
+| Monitoring | Active | Yes | `area: infrastructure`, `area: admin` | [`monitoring/README.md`](monitoring/README.md) |
 | System | Active | Yes | `area: discord` | [`system/README.md`](system/README.md) |
 | Welcome | Active | Yes | `area: welcome` | [`welcome/README.md`](welcome/README.md) |
 | Server statistics | Active | Yes | `area: discord`, `area: backend` | [`server_stats/README.md`](server_stats/README.md) |

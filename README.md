@@ -73,6 +73,25 @@ Participant-facing commands accept either the Participant or Admin role. Admin
 operations and diagnostics accept only the configured Admin role. Discord's
 generic Administrator permission does not bypass these role-ID checks.
 
+Admin commands are also marked with Discord's Administrator visibility default,
+so they are hidden from ordinary roles in the command picker. The configured
+Admin role must therefore have Discord's Administrator permission, or a server
+owner must explicitly allow the commands under **Server Settings → Integrations
+→ Cody**. The role-ID runtime check remains authoritative after any override.
+
+Cody registers commands globally. On startup it removes obsolete guild-specific
+copies left by older development synchronization, preventing duplicate entries.
+
+## Discord operations log
+
+Cody mirrors its own operational events to channel `1541131430682431518` using
+readable severity-colored embeds. Configure another destination with
+`CODY_LOG_CHANNEL_ID`. The Admin-only `/logs status` command checks channel
+permissions, queue health, and delivery state; `/logs test` sends a safe test
+event. Complete tracebacks remain in the terminal, and credentials are redacted
+from Discord summaries. See
+[`cody/features/monitoring/README.md`](cody/features/monitoring/README.md).
+
 ## Cody message style
 
 Cody speaks as a concise network/interface AI. Traditional user-facing embeds should use `cody_embed` from `cody/shared/components.py` so titles, footer text, and colors remain consistent. Rich interfaces such as the welcome message use Discord Components V2 layouts from `cody/features/welcome/views.py`.
