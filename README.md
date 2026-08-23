@@ -86,6 +86,7 @@ Administrators can run `/test_welcome` inside the server to send the real welcom
 - `cody/bot.py` configures the Discord client and loads active extensions.
 - `cody/config.py` owns environment configuration and channel IDs.
 - `cody/features/` separates Discord triggers, services, views, and renderers by feature.
+- `cody/features/server_stats/` maintains live statistics channels through replaceable data providers; its local README documents IDs and operation.
 - `cody/shared/` contains the palette, reusable components, permissions, errors, and logging.
 - `assets/` contains runtime branding, fonts, and welcome artwork.
 - `content/` contains structured lore and rank content.
@@ -121,6 +122,19 @@ Use the repository's structured GitHub issue forms for bugs, features,
 backend/integration work, and development tasks. The complete label taxonomy,
 triage rules, project-board layout, and one-time setup command are documented
 in [`DEVELOPMENT.md`](DEVELOPMENT.md).
+
+## Server statistics
+
+Cody updates the configured Members, layer, team, match, grid-output, and
+ladder-leader voice channels every ten minutes. The supplied role/channel IDs,
+provider settings, Discord permissions, failure behavior, and `/stats` admin
+commands are documented in
+[`cody/features/server_stats/README.md`](cody/features/server_stats/README.md).
+
+The feature uses static competition values by default. Set
+`CODY_STATS_PROVIDER=http` and `CODY_STATS_ENDPOINT` to use the optional
+[`docs/api/server-stats.json`](docs/api/server-stats.json) mock endpoint or the
+future official aggregate API.
 
 ## Website
 

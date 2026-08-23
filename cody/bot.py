@@ -12,6 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 EXTENSIONS = (
     "cody.features.system.cog",
+    "cody.features.server_stats.cog",
     "cody.features.welcome.cog",
 )
 
