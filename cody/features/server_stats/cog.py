@@ -12,10 +12,12 @@ from cody.features.server_stats.constants import (
     REFRESH_INTERVAL_MINUTES,
     SERVER_STATS_CONFIG,
 )
-from cody.features.server_stats.providers import create_stats_provider
 from cody.features.server_stats.models import ServerStatsSnapshot
+from cody.features.server_stats.providers import create_stats_provider
 from cody.features.server_stats.service import (
     ServerStatsService,
+    configured_stat_channel_ids,
+    debug_stat_permissions,
     format_debug_snapshot,
 )
 from cody.shared.permissions import administrator_only
@@ -53,6 +55,9 @@ class ServerStatsCog(
     @refresh_stats_task.before_loop
     async def before_refresh_stats(self) -> None:
         await self.bot.wait_until_ready()
+        guild = self._target_guild()
+        if guild is not None:
+            await debug_stat_permissions(guild, configured_stat_channel_ids())
 
     @app_commands.command(
         name="refresh",
@@ -85,15 +90,17 @@ class ServerStatsCog(
     @app_commands.default_permissions(administrator=True)
     @administrator_only()
     async def debug(self, interaction: discord.Interaction) -> None:
+        guild = self._target_guild()
+        if guild is None or interaction.guild_id != guild.id:
+            await interaction.response.send_message(
+                "The configured statistics server could not be resolved.",
+                ephemeral=True,
+            )
+            return
+
+        await debug_stat_permissions(guild, configured_stat_channel_ids())
         snapshot = self.service.last_snapshot
         if snapshot is None:
-            guild = self._target_guild()
-            if guild is None or interaction.guild_id != guild.id:
-                await interaction.response.send_message(
-                    "No server-statistics snapshot is available.",
-                    ephemeral=True,
-                )
-                return
             await interaction.response.defer(ephemeral=True)
             snapshot = (await self.service.refresh(guild)).snapshot
             await interaction.edit_original_response(

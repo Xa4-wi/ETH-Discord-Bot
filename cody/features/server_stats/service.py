@@ -127,6 +127,57 @@ async def update_server_stats(
     return await ServerStatsService(provider, config).refresh(guild)
 
 
+def configured_stat_channel_ids(
+    config: ServerStatsConfig = SERVER_STATS_CONFIG,
+) -> list[int]:
+    """Return every configured display channel ID in presentation order."""
+
+    return [
+        config.member_channel_id,
+        config.umbral_channel_id,
+        config.lumen_belt_channel_id,
+        config.helio_channel_id,
+        config.active_teams_channel_id,
+        config.matches_today_channel_id,
+        config.grid_output_channel_id,
+        config.ladder_leader_channel_id,
+    ]
+
+
+async def debug_stat_permissions(
+    guild: discord.Guild,
+    channel_ids: list[int],
+) -> None:
+    """Log Cody's effective view/manage permissions for statistics channels."""
+
+    LOGGER.info("=== SERVER STAT PERMISSIONS ===")
+    bot_member = guild.me
+    if bot_member is None:
+        LOGGER.error(
+            "Cody's guild member could not be resolved in guild %s",
+            guild.id,
+        )
+        LOGGER.info("===============================")
+        return
+
+    for channel_id in channel_ids:
+        channel = guild.get_channel(channel_id)
+        if channel is None:
+            LOGGER.error("%s: CHANNEL NOT FOUND", channel_id)
+            continue
+
+        permissions = channel.permissions_for(bot_member)
+        LOGGER.info(
+            "%-30s view=%s manage=%s category=%s",
+            channel.name,
+            permissions.view_channel,
+            permissions.manage_channels,
+            channel.category,
+        )
+
+    LOGGER.info("===============================")
+
+
 def collect_discord_stats(
     guild: discord.Guild,
     config: ServerStatsConfig = SERVER_STATS_CONFIG,
@@ -183,7 +234,7 @@ def build_channel_names(
             discord_stats.umbral_city,
         ),
         config.lumen_belt_channel_id: format_channel_name(
-            "◐",
+            "🪞",
             "The Lumen Belt",
             discord_stats.lumen_belt,
         ),

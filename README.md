@@ -86,6 +86,7 @@ Administrators can run `/test_welcome` inside the server to send the real welcom
 - `cody/bot.py` configures the Discord client and loads active extensions.
 - `cody/config.py` owns environment configuration and channel IDs.
 - `cody/features/` separates Discord triggers, services, views, and renderers by feature.
+- `cody/features/README.md` indexes active and planned features and defines the required documentation format.
 - `cody/features/server_stats/` maintains live statistics channels through replaceable data providers; its local README documents IDs and operation.
 - `cody/shared/` contains the palette, reusable components, permissions, errors, and logging.
 - `assets/` contains runtime branding, fonts, and welcome artwork.

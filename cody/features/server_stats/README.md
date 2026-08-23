@@ -1,14 +1,54 @@
 # Server statistics feature
 
+## Status
+
+- Lifecycle: **Active**
+- Extension loaded: **Yes** (`cody.features.server_stats.cog`)
+- Project labels: `area: discord`, `area: backend`, `area: integrations`
+- Admin commands: `/stats refresh`, `/stats debug`
+- Scheduled refresh: every ten minutes
+
+## Purpose
+
 This feature maintains eight display-only Discord voice channels. Four values
 come directly from Discord and four come from a replaceable competition-stats
 provider. Discord-facing code never depends on the provider's JSON schema.
+
+## Current implementation
+
+Cody counts human members and configured layer roles from Discord, then combines
+them with a provider-neutral `CompetitionStats` snapshot. Static development
+values work without a backend; the HTTP provider consumes one aggregate endpoint
+through a reusable session. Changed channel names are updated, unchanged names
+are skipped, and the last successful competition values are retained after a
+provider failure. The extension, admin commands, mock endpoint, and focused tests
+are implemented and active.
+
+## Intended scope
+
+- Permanent Discord display channels for the eight documented statistics.
+- Direct Discord authority for member and layer-role counts.
+- Replaceable aggregate providers for competition-owned values.
+- Periodic and staff-triggered refresh through one shared service.
+- Clear diagnostics without exposing provider credentials.
+
+Detailed ladder, match, and team records remain in their own features; this
+feature consumes only the aggregate values needed for permanent displays.
+
+## Dependencies and boundaries
+
+- Channel and role IDs come from `cody.config` and are never resolved by name.
+- HTTP response translation belongs in `providers.py`, not the cog or service.
+- Discord collection and channel naming belong in `service.py`.
+- The mock JSON under `docs/api` is public placeholder data, never private state.
+- The Server Members Intent supplies member/role data; the bot does not need
+  Administrator permission.
 
 ## Module responsibilities
 
 | Module | Responsibility |
 | --- | --- |
-| `cog.py` | Ten-minute task loop and admin-only `/stats refresh` and `/stats debug` commands |
+| `cog.py` | Ten-minute task loop, permission diagnostics, and admin-only `/stats refresh` and `/stats debug` commands |
 | `service.py` | Discord counts, formatting, caching, and changed-name-only channel updates |
 | `providers.py` | Static and aggregate HTTP provider implementations |
 | `models.py` | Provider-neutral statistics, configuration, snapshot, and result models |
@@ -53,7 +93,7 @@ without breaking subsequent refreshes.
 ```text
 👥 Members · 123
 🌑 Umbral City · 64
-◐ The Lumen Belt · 41
+🪞 The Lumen Belt · 41
 ☀️ Helio-Citadels · 18
 
 ⚔️ Active Teams · 27
@@ -121,3 +161,47 @@ Add backend fields to `CompetitionStats`, translate them inside the provider,
 and format selected permanent displays in `service.py`. Do not parse HTTP data
 in the cog, search for channels by name, or create separate backend requests for
 each channel.
+
+## Development checklist
+
+- [x] Configure all supplied channel and role IDs with environment overrides.
+- [x] Count Members, Umbral City, The Lumen Belt, and Helio-Citadels from Discord.
+- [x] Implement static and reusable-session HTTP providers.
+- [x] Cache the most recent successful competition statistics.
+- [x] Rename only channels whose desired name changed.
+- [x] Add ten-minute refresh and admin refresh/debug commands.
+- [x] Log Cody's effective channel permissions at startup and on `/stats debug`.
+- [x] Publish and document the optional aggregate mock endpoint.
+- [x] Load the extension and cover provider/service/configuration behavior.
+- [ ] Replace development values with the official aggregate endpoint when its
+  contract and production URL are approved.
+- [ ] Update this README whenever a permanent statistic is added or removed.
+
+## Testing
+
+Coverage under `tests/server_stats/` verifies supplied ID defaults, static and
+future response translation, invalid data rejection, bot exclusion, role counts,
+documented channel formats, Discord's name limit, changed-name-only edits, mock
+JSON compatibility, and cached fallback after provider failure.
+
+Before deployment, also run `/stats debug`, force `/stats refresh`, confirm every
+configured channel is display-only, and verify Cody can manage those channels
+without an Administrator role.
+
+## Operational notes
+
+The static provider contains visible development placeholders, not authoritative
+competition results. Production should remain on `static` only while that is an
+intentional operator choice. When switching to HTTP, configure one trusted HTTPS
+aggregate endpoint and verify cached-failure behavior before deployment.
+
+Cody requires View Channel and Manage Channels for all eight display channels,
+while ordinary members should have Connect and Speak denied. `/stats refresh`
+and `/stats debug` are administrator-only and ephemeral. Provider credentials,
+private backend responses, and Discord member details must not be added to the
+public mock JSON or debug output.
+
+At startup and whenever `/stats debug` runs, Cody logs each configured channel's
+name, category, View Channel permission, and Manage Channels permission. Missing
+channels are reported by ID so configuration problems are visible without
+stopping the refresh loop.

@@ -11,6 +11,8 @@ from cody.features.server_stats.service import (
     ServerStatsService,
     build_channel_names,
     collect_discord_stats,
+    configured_stat_channel_ids,
+    debug_stat_permissions,
     format_channel_name,
 )
 
@@ -39,6 +41,15 @@ class FakeChannel:
     async def edit(self, **kwargs) -> None:
         self.edit_calls.append(kwargs)
         self.name = kwargs["name"]
+
+
+class FakePermissionChannel(FakeChannel):
+    def __init__(self, channel_id: int, name: str, category: str) -> None:
+        super().__init__(channel_id, name)
+        self.category = category
+
+    def permissions_for(self, member):
+        return SimpleNamespace(view_channel=True, manage_channels=False)
 
 
 class FakeGuild:
@@ -74,6 +85,9 @@ def member(*role_ids: int, bot: bool = False):
 
 
 class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
+    def test_configured_channel_ids_follow_display_order(self) -> None:
+        self.assertEqual(configured_stat_channel_ids(CONFIG), list(range(1, 9)))
+
     def test_discord_counts_exclude_bots_and_use_role_ids(self) -> None:
         guild = FakeGuild(
             [
@@ -112,7 +126,7 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(names[1], "👥 Members · 123")
         self.assertEqual(names[2], "🌑 Umbral City · 64")
-        self.assertEqual(names[3], "◐ The Lumen Belt · 41")
+        self.assertEqual(names[3], "🪞 The Lumen Belt · 41")
         self.assertEqual(names[4], "☀️ Helio-Citadels · 18")
         self.assertEqual(names[5], "⚔️ Active Teams · 27")
         self.assertEqual(names[6], "🎮 Matches Today · 143")
@@ -159,6 +173,39 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.provider_error, "backend unavailable")
         self.assertEqual(channels[4].name, "⚔️ Active Teams · 27")
         self.assertEqual(len(channels[4].edit_calls), 1)
+
+    async def test_permission_debug_logs_access_and_missing_channels(self) -> None:
+        channel = FakePermissionChannel(1, "Members", "Server Status")
+        guild = FakeGuild([], [channel])
+        guild.me = SimpleNamespace(id=123)
+
+        with self.assertLogs(
+            "cody.features.server_stats.service",
+            level="INFO",
+        ) as captured:
+            await debug_stat_permissions(guild, [1, 2])
+
+        output = "\n".join(captured.output)
+        self.assertIn("Members", output)
+        self.assertIn("view=True", output)
+        self.assertIn("manage=False", output)
+        self.assertIn("category=Server Status", output)
+        self.assertIn("2: CHANNEL NOT FOUND", output)
+
+    async def test_permission_debug_handles_missing_bot_member(self) -> None:
+        guild = FakeGuild([], [])
+        guild.me = None
+
+        with self.assertLogs(
+            "cody.features.server_stats.service",
+            level="INFO",
+        ) as captured:
+            await debug_stat_permissions(guild, [1])
+
+        self.assertIn(
+            "Cody's guild member could not be resolved",
+            "\n".join(captured.output),
+        )
 
 
 if __name__ == "__main__":
