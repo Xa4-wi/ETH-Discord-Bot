@@ -23,6 +23,7 @@ RULES_CHANNEL_ID = _channel_id("CODY_RULES_CHANNEL_ID", 1540846388328275990)
 WORLD_CHANNEL_ID = _channel_id("CODY_WORLD_CHANNEL_ID", 1540846427377373284)
 
 WELCOME_BACKGROUND = PROJECT_ROOT / "assets" / "welcome" / "umbral-background.png"
+WELCOME_QUOTES = PROJECT_ROOT / "assets" / "welcome" / "welcome_quotes.json"
 FONT_DIR = PROJECT_ROOT / "assets" / "fonts"
 FONT_DISPLAY = FONT_DIR / "play-display.ttf"
 FONT_MONO = FONT_DIR / "share-tech-system.ttf"
@@ -35,6 +36,6 @@ def get_discord_token() -> str:
     token = os.getenv("DISCORD_TOKEN")
     if not token:
         raise RuntimeError(
-            "DISCORD_TOKEN is not set. Start Cody with scripts/start-bot.ps1."
+            "DISCORD_TOKEN is not set. Start Cody with the launcher in scripts/."
         )
     return token

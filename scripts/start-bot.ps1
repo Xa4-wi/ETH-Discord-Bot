@@ -1,8 +1,11 @@
 $ErrorActionPreference = "Stop"
 $locationPushed = $false
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$venvPython = Join-Path $projectRoot ".venv/Scripts/python.exe"
 
-$python = if (Get-Command python -ErrorAction SilentlyContinue) {
+$python = if (Test-Path $venvPython -PathType Leaf) {
+    $venvPython
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
     "python"
 } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
     "python3"

@@ -7,9 +7,19 @@ import discord
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
 from cody.config import FONT_BODY, FONT_DISPLAY, FONT_MONO, WELCOME_BACKGROUND
+from cody.features.welcome.quotes import (
+    FALLBACK_WELCOME_QUOTE,
+    random_welcome_quote,
+)
 
 CARD_WIDTH = 1200
 CARD_HEIGHT = 675
+PANEL_BOX = (270, 32, CARD_WIDTH - 270, CARD_HEIGHT - 42)
+
+QUOTE_AREA_WIDTH = PANEL_BOX[2] - PANEL_BOX[0] - 64
+QUOTE_AREA_HEIGHT = 84
+QUOTE_MAX_LINES = 3
+QUOTE_LINE_SPACING = 4
 
 GOLD = (232, 161, 60)
 OFF_WHITE = (246, 239, 223)
@@ -49,6 +59,108 @@ def _fitted_font(
             return font
 
     return _font(minimum, kind=kind)
+
+
+def _text_width(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+) -> int:
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0]
+
+
+def _wrap_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    width: int,
+) -> list[str]:
+    """Wrap text at word boundaries using rendered pixel width."""
+
+    lines: list[str] = []
+    current_line = ""
+
+    for word in text.split():
+        candidate = f"{current_line} {word}".strip()
+        if not current_line or _text_width(draw, candidate, font) <= width:
+            current_line = candidate
+        else:
+            lines.append(current_line)
+            current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return lines or [""]
+
+
+def _truncate_to_width(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    width: int,
+) -> str:
+    """Shorten text with an ellipsis when even the minimum layout cannot fit."""
+
+    if _text_width(draw, text, font) <= width:
+        return text
+
+    suffix = "…"
+    low = 0
+    high = len(text)
+    while low < high:
+        middle = (low + high + 1) // 2
+        candidate = f"{text[:middle].rstrip()}{suffix}"
+        if _text_width(draw, candidate, font) <= width:
+            low = middle
+        else:
+            high = middle - 1
+
+    return f"{text[:low].rstrip()}{suffix}"
+
+
+def _layout_quote(
+    draw: ImageDraw.ImageDraw,
+    quote: str,
+) -> tuple[str, ImageFont.FreeTypeFont]:
+    """Fit a centered quote inside the welcome card's inner panel."""
+
+    quote_text = f'"{quote}"'
+    for size in range(27, 17, -2):
+        font = _font(size, kind="body")
+        lines = _wrap_text(draw, quote_text, font, QUOTE_AREA_WIDTH)
+        wrapped_text = "\n".join(lines)
+        box = draw.multiline_textbbox(
+            (0, 0),
+            wrapped_text,
+            font=font,
+            spacing=QUOTE_LINE_SPACING,
+            align="center",
+        )
+        height = box[3] - box[1]
+        if (
+            len(lines) <= QUOTE_MAX_LINES
+            and height <= QUOTE_AREA_HEIGHT
+            and all(
+                _text_width(draw, line, font) <= QUOTE_AREA_WIDTH
+                for line in lines
+            )
+        ):
+            return wrapped_text, font
+
+    font = _font(18, kind="body")
+    lines = _wrap_text(draw, quote_text, font, QUOTE_AREA_WIDTH)
+    if len(lines) > QUOTE_MAX_LINES:
+        lines = lines[: QUOTE_MAX_LINES - 1] + [
+            " ".join(lines[QUOTE_MAX_LINES - 1 :])
+        ]
+
+    fitted_lines = [
+        _truncate_to_width(draw, line, font, QUOTE_AREA_WIDTH)
+        for line in lines
+    ]
+    return "\n".join(fitted_lines), font
 
 
 def _chamfered_points(
@@ -107,6 +219,7 @@ def render_welcome_card(
     avatar_bytes: bytes,
     display_name: str,
     arrival_code: str,
+    quote: str = FALLBACK_WELCOME_QUOTE,
 ) -> BytesIO:
     """Render a personalized welcome card and return its PNG buffer."""
 
@@ -133,7 +246,7 @@ def render_welcome_card(
 
     _draw_chamfered_panel(
         draw,
-        (270, 32, CARD_WIDTH - 270, CARD_HEIGHT - 42),
+        PANEL_BOX,
         cut=24,
         fill=(3, 9, 11, 145),
         outline_alpha=145,
@@ -262,12 +375,15 @@ def render_welcome_card(
         fill=MUTED,
         anchor="mm",
     )
-    draw.text(
+    quote_text, quote_font = _layout_quote(draw, quote)
+    draw.multiline_text(
         (CARD_WIDTH // 2, 535),
-        '"Past here, the sun is still a rumor."',
-        font=_font(27, kind="body"),
+        quote_text,
+        font=quote_font,
         fill=OFF_WHITE,
+        spacing=QUOTE_LINE_SPACING,
         anchor="mm",
+        align="center",
     )
 
     draw.text(
@@ -306,4 +422,5 @@ async def create_welcome_card(member: discord.Member) -> BytesIO:
         avatar_bytes,
         member.display_name,
         arrival_code,
+        random_welcome_quote(),
     )

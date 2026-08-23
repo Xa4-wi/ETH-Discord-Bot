@@ -4,19 +4,53 @@
 
 Never paste the Discord bot token into source code, configuration committed to Git, a command-line argument, or a chat message. `main.py` reads it only from the `DISCORD_TOKEN` environment variable.
 
-Install the bot dependencies once in the active Python environment:
+### macOS
 
-```powershell
-python -m pip install -r requirements.txt
+The native macOS launcher requires Python 3.9 or newer. From Terminal, complete this setup once from the repository directory:
+
+```zsh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
-From the repository directory, use the provided PowerShell launcher on Windows or macOS:
+Start Cody with:
 
-```powershell
-./scripts/start-bot.ps1
+```zsh
+./scripts/start-bot.sh
 ```
 
-The launcher prompts for the token with masked input, runs the bot, and removes `DISCORD_TOKEN` when the bot exits, crashes, or is stopped with Ctrl+C.
+At the prompt, paste the token with Command+V and press Return. The hidden prompt deliberately displays no characters while you paste. It confirms the token's character count afterward without revealing the token.
+
+For a long token, you can avoid pasting into Terminal entirely. Copy the token to the macOS clipboard, then run:
+
+```zsh
+./scripts/start-bot.sh --clipboard
+```
+
+The launcher reads the clipboard without printing the token or adding it to shell history. It uses the virtual environment automatically and removes `DISCORD_TOKEN` from its environment when Cody stops. Press Ctrl+C to stop the bot. Because macOS retains copied text, replace the token in your clipboard with non-sensitive text after Cody starts.
+
+If the launcher is not executable after downloading the repository, run this once:
+
+```zsh
+chmod +x scripts/start-bot.sh
+```
+
+### Windows
+
+From PowerShell, create a virtual environment and install the dependencies once:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Start Cody with:
+
+```powershell
+.\scripts\start-bot.ps1
+```
+
+The PowerShell launcher also detects the repository virtual environment automatically and securely clears the token when Cody stops.
 
 If script execution is disabled on Windows, run the launcher for the current session without changing the system policy:
 
@@ -24,7 +58,7 @@ If script execution is disabled on Windows, run the launcher for the current ses
 powershell -ExecutionPolicy Bypass -File ./scripts/start-bot.ps1
 ```
 
-Do not save the token in the launcher. Local `.env` files are ignored by Git as an additional safeguard, but this project does not require one.
+For member welcome events to work, enable **Server Members Intent** for Cody in the Discord Developer Portal. Do not save the token in either launcher. Local `.env` files are ignored by Git as an additional safeguard, but this project does not require one.
 
 ## Cody message style
 
@@ -65,6 +99,7 @@ Runtime artwork uses descriptive, role-based names:
 - `assets/branding/cody-icon.png` — Cody's master icon.
 - `assets/branding/cody-banner.png` — current master Battlecode banner.
 - `assets/welcome/umbral-background.png` — background consumed by the welcome renderer.
+- `assets/welcome/welcome_quotes.json` — randomized welcome-card quotes.
 - `assets/fonts/play-display.ttf` — display/body typeface.
 - `assets/fonts/share-tech-system.ttf` — system-interface typeface.
 - `docs/assets/cody-icon.png` and `docs/assets/cody-banner.png` — website-only copies.
@@ -72,8 +107,12 @@ Runtime artwork uses descriptive, role-based names:
 
 Run the automated checks from the repository root with:
 
-```powershell
-python -m unittest discover
+```text
+# macOS
+.venv/bin/python -m unittest discover
+
+# Windows PowerShell
+.\.venv\Scripts\python.exe -m unittest discover
 ```
 
 ## Website
