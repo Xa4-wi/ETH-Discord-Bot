@@ -1,0 +1,35 @@
+[
+  {"name": "type: feature", "color": "1D76DB", "description": "New capability or meaningful product improvement"},
+  {"name": "type: bug", "color": "D73A4A", "description": "Something is broken or behaves incorrectly"},
+  {"name": "type: task", "color": "0E8A16", "description": "Implementation, investigation, or planned development work"},
+  {"name": "type: maintenance", "color": "6F42C1", "description": "Refactoring, dependencies, cleanup, or developer tooling"},
+  {"name": "type: documentation", "color": "0075CA", "description": "Documentation-only work"},
+
+  {"name": "area: discord", "color": "5865F2", "description": "Discord commands, events, permissions, or components"},
+  {"name": "area: welcome", "color": "E8A13C", "description": "Member welcome flow, card rendering, or welcome content"},
+  {"name": "area: backend", "color": "5319E7", "description": "Server-side application and game-backend work"},
+  {"name": "area: database", "color": "006B75", "description": "Persistence, schemas, migrations, or data lifecycle"},
+  {"name": "area: integrations", "color": "0E8A16", "description": "External APIs, services, and system connections"},
+  {"name": "area: teams", "color": "FBCA04", "description": "Team registration and management"},
+  {"name": "area: matches", "color": "BFD4F2", "description": "Match orchestration and match information"},
+  {"name": "area: ladder", "color": "F1C75B", "description": "Ranks, ratings, standings, and progression"},
+  {"name": "area: lore", "color": "244D3B", "description": "Worldbuilding, glossary, transmissions, and content"},
+  {"name": "area: admin", "color": "B60205", "description": "Organizer controls and administrative operations"},
+  {"name": "area: website", "color": "0366D6", "description": "Static website, policies, and public information"},
+  {"name": "area: infrastructure", "color": "6A737D", "description": "Deployment, CI, monitoring, and runtime operations"},
+
+  {"name": "priority: critical", "color": "B60205", "description": "Immediate security or service-blocking work"},
+  {"name": "priority: high", "color": "D93F0B", "description": "Important work that should be scheduled next"},
+  {"name": "priority: medium", "color": "FBCA04", "description": "Normal planned work"},
+  {"name": "priority: low", "color": "0E8A16", "description": "Useful but not currently urgent"},
+
+  {"name": "size: small", "color": "C2E0C6", "description": "Small, focused change"},
+  {"name": "size: medium", "color": "FEF2C0", "description": "Moderate change spanning several files or concerns"},
+  {"name": "size: large", "color": "F9D0C4", "description": "Large change that should be broken down when possible"},
+
+  {"name": "blocked", "color": "000000", "description": "Cannot progress until a dependency or decision is resolved"},
+  {"name": "needs decision", "color": "D4C5F9", "description": "Requires an organizer or architecture decision"},
+  {"name": "security", "color": "B60205", "description": "Security-sensitive work; avoid public disclosure of secrets"},
+  {"name": "good first issue", "color": "7057FF", "description": "Approachable work for a new contributor"},
+  {"name": "help wanted", "color": "008672", "description": "Additional contributor help is welcome"}
+]

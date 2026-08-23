@@ -1,0 +1,64 @@
+name: Feature request
+description: Propose a new Cody capability or a meaningful product improvement.
+title: "[Feature] "
+labels:
+  - "type: feature"
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What user or organizer need should this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the desired behavior from a user's perspective.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Discord commands and events
+        - Welcome system
+        - Backend
+        - Database
+        - External integration
+        - Teams
+        - Matches
+        - Ladder and rankings
+        - Lore and content
+        - Admin tools
+        - Website
+        - Infrastructure and deployment
+    validations:
+      required: true
+
+  - type: textarea
+    id: experience
+    attributes:
+      label: User experience
+      description: Include commands, messages, permissions, and failure states where relevant.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes that mean the feature is complete.
+      placeholder: |
+        - [ ] A participant can...
+        - [ ] An organizer can...
+        - [ ] Errors are handled when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or additional context

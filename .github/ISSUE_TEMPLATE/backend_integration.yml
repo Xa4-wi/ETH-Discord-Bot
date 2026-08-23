@@ -1,0 +1,75 @@
+name: Backend or integration work
+description: Plan database, API, game-backend, or third-party connection work.
+title: "[Backend] "
+labels:
+  - "type: feature"
+  - "area: backend"
+  - "area: integrations"
+body:
+  - type: input
+    id: system
+    attributes:
+      label: System or service
+      description: Name the API, database, service, or ETH Battlecode component.
+      placeholder: ETH Battlecode game backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Integration goal
+      description: What should Cody be able to do after this connection exists?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Data direction
+      options:
+        - Cody reads from the system
+        - Cody writes to the system
+        - Bidirectional
+        - Not yet decided
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: API or data contract
+      description: Describe endpoints, events, tables, payloads, identifiers, and ownership.
+    validations:
+      required: true
+
+  - type: textarea
+    id: authentication
+    attributes:
+      label: Authentication and permissions
+      description: Describe the required mechanism and scopes. Never paste credentials.
+
+  - type: textarea
+    id: reliability
+    attributes:
+      label: Reliability requirements
+      description: Cover timeouts, retries, rate limits, idempotency, and fallback behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: persistence
+    attributes:
+      label: Persistence and migration impact
+      description: What data is stored, retained, migrated, or deleted?
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Connection configuration is documented.
+        - [ ] Success and failure paths are tested.
+        - [ ] Secrets are supplied only through the runtime environment.
+    validations:
+      required: true

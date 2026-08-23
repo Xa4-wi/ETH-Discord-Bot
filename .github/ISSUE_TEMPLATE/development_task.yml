@@ -1,0 +1,56 @@
+name: Development task
+description: Track implementation, refactoring, maintenance, or investigation work.
+title: "[Task] "
+labels:
+  - "type: task"
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: State the concrete outcome of this work.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Discord commands and events
+        - Welcome system
+        - Backend
+        - Database
+        - External integration
+        - Teams
+        - Matches
+        - Ladder and rankings
+        - Lore and content
+        - Admin tools
+        - Website
+        - Infrastructure and deployment
+    validations:
+      required: true
+
+  - type: textarea
+    id: work
+    attributes:
+      label: Work outline
+      description: Note the expected implementation steps or investigation questions.
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link related issues and identify decisions or external access required.
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      placeholder: |
+        - [ ] Implementation is complete.
+        - [ ] Tests cover the changed behavior.
+        - [ ] Documentation is updated.
+    validations:
+      required: true

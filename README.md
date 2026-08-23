@@ -115,6 +115,13 @@ Run the automated checks from the repository root with:
 .\.venv\Scripts\python.exe -m unittest discover
 ```
 
+## Development planning
+
+Use the repository's structured GitHub issue forms for bugs, features,
+backend/integration work, and development tasks. The complete label taxonomy,
+triage rules, project-board layout, and one-time setup command are documented
+in [`DEVELOPMENT.md`](DEVELOPMENT.md).
+
 ## Website
 
 The temporary ETH Battlecode website used for Discord application verification is located in `/docs`.

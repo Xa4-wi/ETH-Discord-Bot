@@ -1,0 +1,95 @@
+name: Bug report
+description: Report something in Cody that is broken or behaving incorrectly.
+title: "[Bug] "
+labels:
+  - "type: bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Give enough detail for another developer to reproduce and verify the problem.
+        Never include Discord tokens, credentials, or private user data.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem summary
+      description: What is broken, and what impact does it have?
+      placeholder: Cody fails to send a welcome card when...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Discord commands and events
+        - Welcome system
+        - Backend
+        - Database
+        - External integration
+        - Teams
+        - Matches
+        - Ladder and rankings
+        - Lore and content
+        - Admin tools
+        - Website
+        - Infrastructure and deployment
+        - Unknown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical - security issue or bot cannot operate
+        - High - core functionality is unavailable
+        - Medium - functionality is impaired but has a workaround
+        - Low - minor or cosmetic problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: List the smallest reliable sequence that triggers the problem.
+      placeholder: |
+        1. Start Cody with...
+        2. Run...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or additional context
+      description: Remove tokens, IDs, and private data before attaching evidence.
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, and relevant dependency versions.
+      placeholder: macOS 15, Python 3.12, discord.py 2.x
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed secrets and private information from this report.
+          required: true
