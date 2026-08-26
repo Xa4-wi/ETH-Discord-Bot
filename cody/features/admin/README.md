@@ -35,8 +35,11 @@ in a feature issue before implementation rather than inferred while coding.
 - Reuse `cody.shared.permissions` for application-command checks.
 - Call public services owned by teams, matches, ladder, announcements, or other
   features; do not duplicate their business rules here.
-- Persistent audit data belongs in `cody/integrations/database.py` or a future
-  shared persistence adapter.
+- Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md) for any
+  official data. Cody has no direct database or persistence adapter.
+- Discord Admin/Organiser roles may authorize local operational controls but
+  never grant competition-data authority. Backend actions are independently
+  authorized by the Main Backend.
 - Discord-specific layouts belong in `views.py`; secret values must never appear
   in responses or logs.
 
@@ -63,4 +66,5 @@ in a feature issue before implementation rather than inferred while coding.
 
 Prefer granular Discord permissions over requiring the Cody bot role to have
 Administrator. High-impact command responses should be ephemeral unless an
-explicit public audit message is part of the approved design.
+explicit public audit message is part of the approved design. Admin workflows
+must not become a route to team, match, submission, or ranking mutations.

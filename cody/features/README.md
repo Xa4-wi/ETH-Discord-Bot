@@ -14,6 +14,9 @@ separate from unrelated features. Every feature folder must contain a
 | Welcome | Active | Yes | `area: welcome` | [`welcome/README.md`](welcome/README.md) |
 | Server statistics | Active | Yes | `area: discord`, `area: backend` | [`server_stats/README.md`](server_stats/README.md) |
 | Tickets | Active | Yes | `area: discord`, `area: backend` | [`tickets/README.md`](tickets/README.md) |
+| Participants | Planned | No | `area: participants`, `area: backend` | [`participants/README.md`](participants/README.md) |
+| Submissions | Planned | No | `area: submissions`, `area: backend` | [`submissions/README.md`](submissions/README.md) |
+| Event status | Planned | No | `area: events`, `area: backend` | [`event_status/README.md`](event_status/README.md) |
 | Admin | Planned | No | `area: admin` | [`admin/README.md`](admin/README.md) |
 | Announcements | Planned | No | `area: discord` | [`announcements/README.md`](announcements/README.md) |
 | Ladder | Planned | No | `area: ladder` | [`ladder/README.md`](ladder/README.md) |
@@ -24,6 +27,11 @@ separate from unrelated features. Every feature folder must contain a
 The authoritative loaded-extension list is `EXTENSIONS` in `cody/bot.py`.
 Documentation must never describe a planned feature as available until that
 extension is loaded and its acceptance checks pass.
+
+Backend-facing features also follow the locked boundary and draft wire contract
+in [`CODY_INTEGRATION_SPEC.md`](../../CODY_INTEGRATION_SPEC.md). The repository's
+feature-based structure remains authoritative; do not introduce a parallel
+`commands/`, `backend/`, or `presentation/` tree from an external design draft.
 
 ## Status definitions
 

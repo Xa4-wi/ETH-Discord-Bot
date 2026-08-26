@@ -34,7 +34,7 @@ their own member profile.
 - First-step navigation relevant to onboarding.
 - An administrator-only path for verifying the real production flow.
 
-Role assignment, team registration, lore browsing, and general announcements
+Role assignment, team information, lore browsing, and general announcements
 remain owned by their respective features.
 
 ## Dependencies and boundaries

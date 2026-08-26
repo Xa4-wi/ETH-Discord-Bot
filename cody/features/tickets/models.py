@@ -1,4 +1,4 @@
-"""Provider-neutral models for Cody support tickets."""
+"""Temporary Discord-workflow models for Cody support tickets."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class TicketStatus(str, Enum):
 
 @dataclass(frozen=True)
 class Ticket:
-    """One temporary support request independent of its storage provider."""
+    """One temporary Discord support request; not the future backend DTO."""
 
     ticket_id: int
     discord_user_id: int

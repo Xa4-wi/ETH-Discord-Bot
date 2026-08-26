@@ -21,6 +21,10 @@ REFRESH_INTERVAL_MINUTES = 10
 HTTP_TIMEOUT_SECONDS = 10
 DISCORD_CHANNEL_NAME_LIMIT = 100
 GRID_OUTPUT_UNIT = "GW"
+# Canonical values disappear after three missed ten-minute refreshes. This is
+# deliberately a fixed safety ceiling rather than an operator-expandable TTL.
+MAX_COMPETITION_STALE_SECONDS = 30 * 60
+MAX_BACKEND_CLOCK_SKEW_SECONDS = 5 * 60
 
 SERVER_STATS_CONFIG = ServerStatsConfig(
     member_channel_id=STATS_MEMBERS_CHANNEL_ID,

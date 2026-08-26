@@ -1,5 +1,9 @@
 # ETH Discord Bot
 
+The authoritative architecture and API boundary between Cody and the official
+website backend is [`CODY_INTEGRATION_SPEC.md`](CODY_INTEGRATION_SPEC.md).
+Backend-facing work must follow it before a feature is loaded in production.
+
 ## Running the bot securely
 
 Never paste the Discord bot token into source code, configuration committed to Git, a command-line argument, or a chat message. `main.py` reads it only from the `DISCORD_TOKEN` environment variable.
@@ -125,6 +129,7 @@ Administrators can run `/test_welcome` inside the server to send the real welcom
 - `cody/features/` separates Discord triggers, services, views, and renderers by feature.
 - `cody/features/README.md` indexes active and planned features and defines the required documentation format.
 - `cody/features/server_stats/` maintains live statistics channels through replaceable data providers; its local README documents IDs and operation.
+- `cody/integrations/backend/` is the only approved client boundary for official competition data.
 - `cody/shared/` contains the palette, reusable components, permissions, errors, and logging.
 - `assets/` contains runtime branding, fonts, and welcome artwork.
 - `content/` contains structured lore and rank content.
@@ -169,10 +174,27 @@ provider settings, Discord permissions, failure behavior, and `/stats` admin
 commands are documented in
 [`cody/features/server_stats/README.md`](cody/features/server_stats/README.md).
 
-The feature uses static competition values by default. Set
-`CODY_STATS_PROVIDER=http` and `CODY_STATS_ENDPOINT` to use the optional
-[`docs/api/server-stats.json`](docs/api/server-stats.json) mock endpoint or the
-future official aggregate API.
+The safe default is `CODY_STATS_PROVIDER=discord`: Cody refreshes human/community
+role counts and marks backend-owned competition displays `Unavailable`. `static`
+and `http` are explicit development-fixture modes only. Production aggregates
+use `CODY_STATS_PROVIDER=backend`, `CODY_BACKEND_ENDPOINT`, and
+`CODY_BACKEND_SERVICE_TOKEN`; this sends `statistics.summary` through the
+versioned authenticated client.
+
+## Main Backend integration
+
+Cody has one official competition-data dependency: the Main Backend. The shared
+client enforces the action allow-list, HTTPS, service authentication, request
+IDs, idempotency on ticket mutations, strict response envelopes and sizes,
+safe read retries, and user-safe errors. It remains inactive until backend
+configuration is supplied, so local Discord-only operation does not require a
+placeholder credential.
+
+Cody never connects directly to a competition database, object storage, or
+match infrastructure. Teams, matches, submissions, rankings, and event state
+are read-only from Cody's perspective. See the complete current/target matrix,
+wire format, ticket transition plan, and open production decisions in
+[`CODY_INTEGRATION_SPEC.md`](CODY_INTEGRATION_SPEC.md).
 
 ## Support tickets
 
@@ -183,10 +205,10 @@ release, and resolve the resulting ticket.
 
 This first version has no local database and saves no transcripts. Resolution
 marks the temporary ticket `RESOLVED`, sends safe metadata to Cody's operations
-log, and deletes the private channel. The asynchronous repository boundary is
-ready for a later official website-backend integration, where SQLite and durable
-ticket status should live. Configuration, permissions, limitations, and the
-backend hand-off are documented in
+log, and deletes the private channel. The future integration separates
+backend-canonical ticket actions from local Discord channel routing; PostgreSQL
+and durable ticket status belong only to the website backend. Configuration,
+permissions, limitations, and the backend hand-off are documented in
 [`cody/features/tickets/README.md`](cody/features/tickets/README.md).
 
 ## Website

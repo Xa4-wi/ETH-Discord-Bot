@@ -29,9 +29,12 @@ body:
         - Backend
         - Database
         - External integration
+        - Participants
         - Teams
+        - Submissions
         - Matches
         - Ladder and rankings
+        - Event status
         - Lore and content
         - Admin tools
         - Website

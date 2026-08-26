@@ -17,18 +17,20 @@ provider. Discord-facing code never depends on the provider's JSON schema.
 
 ## Current implementation
 
-Cody counts human members and configured layer roles from Discord, then combines
-them with a provider-neutral `CompetitionStats` snapshot. Static development
-values work without a backend; the HTTP provider consumes one aggregate endpoint
-through a reusable session. Changed channel names are updated, unchanged names
-are skipped, and the last successful competition values are retained after a
-provider failure. The extension, admin commands, mock endpoint, and focused tests
-are implemented and active.
+Cody counts human members and configured community roles from Discord, then may
+combine them with a provider-neutral `CompetitionStats` snapshot. The safe
+default is Discord-only and never publishes fabricated competition values.
+Static and unauthenticated HTTP providers remain explicit development fixtures;
+the production provider calls `statistics.summary` through the shared
+authenticated Main Backend client. Changed names are updated, unchanged names
+are skipped, and the last successful canonical aggregate is retained for at
+most 30 minutes after a provider failure with a visible stale timestamp.
 
 ## Intended scope
 
 - Permanent Discord display channels for the eight documented statistics.
-- Direct Discord authority for member and layer-role counts.
+- Discord authority only for guild/community-role telemetry, not canonical
+  participant counts or competition-layer assignment.
 - Replaceable aggregate providers for competition-owned values.
 - Periodic and staff-triggered refresh through one shared service.
 - Effective permission reporting without exposing provider credentials.
@@ -39,9 +41,12 @@ feature consumes only the aggregate values needed for permanent displays.
 ## Dependencies and boundaries
 
 - Channel and role IDs come from `cody.config` and are never resolved by name.
-- HTTP response translation belongs in `providers.py`, not the cog or service.
+- Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md).
+- Production HTTP uses only `cody.integrations.backend`; aggregate translation
+  belongs in `providers.py`, not the cog or service.
 - Discord collection and channel naming belong in `service.py`.
-- The mock JSON under `docs/api` is public placeholder data, never private state.
+- The mock JSON under `docs/api` and static values are development fixtures,
+  never canonical data or a production default.
 - The Server Members Intent supplies member/role data; the bot does not need
   Administrator permission.
 
@@ -51,14 +56,15 @@ feature consumes only the aggregate values needed for permanent displays.
 | --- | --- |
 | `cog.py` | Ten-minute task loop and admin-only `/stats refresh` and `/stats permissions` commands |
 | `service.py` | Discord counts, formatting, caching, and changed-name-only channel updates |
-| `providers.py` | Static and aggregate HTTP provider implementations |
+| `providers.py` | Discord-only, development fixture, and Main Backend aggregate providers |
 | `models.py` | Provider-neutral statistics, configuration, snapshot, and result models |
 | `constants.py` | Refresh, formatting, and assembled ID configuration |
 
 The persistent `ServerStatsService` keeps the most recent successful
-`CompetitionStats`. If an HTTP request or schema validation fails, Cody leaves
-those competition displays at their last good values, logs the failure, and
-still refreshes Discord-derived values.
+`CompetitionStats`. If a backend request or schema validation fails, Cody keeps
+a valid fallback for no more than 30 minutes, labels every retained value
+`stale HH:MMZ`, logs the failure, and still refreshes Discord-derived values.
+Missing or expired competition values are actively displayed as `Unavailable`.
 
 ## Discord configuration
 
@@ -78,13 +84,13 @@ variable when cloning the bot into another server.
 | Display | Data owner | Default channel ID | Environment variable |
 | --- | --- | ---: | --- |
 | Members | Discord | `1541109424796602418` | `CODY_STATS_MEMBERS_CHANNEL_ID` |
-| Umbral City | Discord role | `1541109668263362691` | `CODY_STATS_UMBRAL_CHANNEL_ID` |
-| The Lumen Belt | Discord role | `1541109719530344538` | `CODY_STATS_LUMEN_CHANNEL_ID` |
-| Helio-Citadels | Discord role | `1541109796063674519` | `CODY_STATS_HELIO_CHANNEL_ID` |
-| Active Teams | Provider | `1541111483897749534` | `CODY_STATS_ACTIVE_TEAMS_CHANNEL_ID` |
-| Matches Today | Provider | `1541111104661495929` | `CODY_STATS_MATCHES_TODAY_CHANNEL_ID` |
-| Grid Output | Provider | `1541111224882823239` | `CODY_STATS_GRID_OUTPUT_CHANNEL_ID` |
-| Ladder Leader | Provider | `1541111316310396949` | `CODY_STATS_LADDER_LEADER_CHANNEL_ID` |
+| Umbral City | Discord community role | `1541109668263362691` | `CODY_STATS_UMBRAL_CHANNEL_ID` |
+| The Lumen Belt | Discord community role | `1541109719530344538` | `CODY_STATS_LUMEN_CHANNEL_ID` |
+| Helio-Citadels | Discord community role | `1541109796063674519` | `CODY_STATS_HELIO_CHANNEL_ID` |
+| Active Teams | Main Backend/development provider | `1541111483897749534` | `CODY_STATS_ACTIVE_TEAMS_CHANNEL_ID` |
+| Matches Today | Main Backend/development provider | `1541111104661495929` | `CODY_STATS_MATCHES_TODAY_CHANNEL_ID` |
+| Grid Output | Main Backend/development provider | `1541111224882823239` | `CODY_STATS_GRID_OUTPUT_CHANNEL_ID` |
+| Ladder Leader | Main Backend/development provider | `1541111316310396949` | `CODY_STATS_LADDER_LEADER_CHANNEL_ID` |
 
 Cody locates channels and roles only by ID. Channel names can therefore change
 without breaking subsequent refreshes.
@@ -109,13 +115,25 @@ calling Discord's edit API.
 
 ## Provider configuration
 
-Static development data is the default:
+Discord-only operation is the safe default:
 
 ```text
-CODY_STATS_PROVIDER=static
+CODY_STATS_PROVIDER=discord
 ```
 
-To use one aggregate JSON endpoint instead:
+It updates Members and the three community-role displays. It deliberately leaves
+no old fixture data behind: Active Teams, Matches Today, Grid Output, and Ladder
+Leader are renamed to `Unavailable`.
+
+Canonical production aggregates use the one Main Backend endpoint:
+
+```text
+CODY_STATS_PROVIDER=backend
+CODY_BACKEND_ENDPOINT=https://backend.example/internal/cody/v1
+CODY_BACKEND_SERVICE_TOKEN=<secret supplied by the runtime>
+```
+
+For local fixtures only, select `static` or the public mock explicitly:
 
 ```text
 CODY_STATS_PROVIDER=http
@@ -133,12 +151,28 @@ The HTTP provider accepts the repository mock shape:
 }
 ```
 
-It also accepts a future backend response where `ladder_leader` is an object
-containing a `name`. Provider translation keeps backend response changes out of
-the service and cog.
+The canonical provider requires the complete `statistics.summary` data object:
+
+```json
+{
+  "active_teams": 12,
+  "matches_today": 37,
+  "grid_output": 42.8,
+  "ladder_leader": {"team_id": "team_17", "name": "Team X"},
+  "as_of": "2026-08-26T12:20:00.000Z"
+}
+```
+
+The shared backend client supplies service authentication, request IDs, strict
+envelopes, HTTPS, retries, streaming size limits, and safe logging. A separate
+development translator handles the intentionally looser repository mock so it
+cannot weaken production validation.
 
 `CODY_STATS_INCLUDE_BOTS` defaults to `false`. Set it to `true` if the Members
 display should use Discord's complete guild member count, including bots.
+With bot exclusion enabled, Cody requires a populated member cache; it reports
+zero rather than fall back to Discord's bot-inclusive aggregate when that cache
+is unavailable.
 
 ## Discord permissions
 
@@ -174,15 +208,18 @@ each channel.
 
 - [x] Configure all supplied channel and role IDs with environment overrides.
 - [x] Count Members, Umbral City, The Lumen Belt, and Helio-Citadels from Discord.
-- [x] Implement static and reusable-session HTTP providers.
+- [x] Make Discord-only operation the safe default without invented values.
+- [x] Keep static/public HTTP providers explicit development fixtures.
+- [x] Add a canonical `statistics.summary` provider using the shared backend client.
 - [x] Cache the most recent successful competition statistics.
+- [x] Bound fallback to 30 minutes, label it stale, and clear expired/disabled values.
 - [x] Rename only channels whose desired name changed.
 - [x] Add ten-minute refresh and the admin-only `/stats refresh` command.
 - [x] Add `/stats permissions` for Cody's identity, roles, and effective access.
 - [x] Publish and document the optional aggregate mock endpoint.
 - [x] Load the extension and cover provider/service/configuration behavior.
-- [ ] Replace development values with the official aggregate endpoint when its
-  contract and production URL are approved.
+- [ ] Configure and validate the production endpoint/service credential after
+  backend review.
 - [ ] Update this README whenever a permanent statistic is added or removed.
 
 ## Testing
@@ -190,7 +227,8 @@ each channel.
 Coverage under `tests/server_stats/` verifies supplied ID defaults, static and
 future response translation, invalid data rejection, bot exclusion, role counts,
 documented channel formats, Discord's name limit, changed-name-only edits, mock
-JSON compatibility, and cached fallback after provider failure.
+JSON compatibility, strict canonical `as_of`/leader validation, bounded stale
+fallback, and unavailable-name cleanup.
 
 Before deployment, run `/stats permissions`, force `/stats refresh`, confirm every
 configured channel is display-only, and verify Cody can manage those channels
@@ -198,10 +236,11 @@ without an Administrator role.
 
 ## Operational notes
 
-The static provider contains visible development placeholders, not authoritative
-competition results. Production should remain on `static` only while that is an
-intentional operator choice. When switching to HTTP, configure one trusted HTTPS
-aggregate endpoint and verify cached-failure behavior before deployment.
+The static/public HTTP providers contain visible development placeholders, not
+authoritative competition results, and must never be production defaults. Use
+`backend` for production only after the action schema and endpoint are approved.
+The Discord layer-role displays mean role membership in this guild; they do not
+authorize backend data or establish canonical competition-layer assignment.
 
 Cody requires View Channel and Manage Channels for all eight display channels,
 while ordinary members should have Connect and Speak denied. `/stats refresh`

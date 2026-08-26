@@ -1,4 +1,4 @@
-"""Replaceable ticket storage boundary and temporary in-memory implementation."""
+"""Temporary Discord ticket workflow state and in-memory implementation."""
 
 from __future__ import annotations
 
@@ -35,7 +35,12 @@ class TicketNotAssignedToOrganizer(TicketRepositoryError):
 
 
 class TicketRepository(Protocol):
-    """Async contract for future website/backend ticket persistence."""
+    """Local workflow-state contract, including Discord channel recovery.
+
+    This deliberately is not the canonical Main Backend ticket gateway. The
+    backend and Discord-routing responsibilities will be split before durable
+    ticket integration.
+    """
 
     async def create(
         self,

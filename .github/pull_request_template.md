@@ -27,4 +27,5 @@ Closes #
 - [ ] No token, credential, or private user data is included.
 - [ ] Configuration and environment-variable changes are documented.
 - [ ] New behavior has focused tests.
+- [ ] Backend-facing changes follow `CODY_INTEGRATION_SPEC.md` and use the shared client.
 - [ ] The issue and project metadata are up to date.

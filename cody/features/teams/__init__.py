@@ -1,1 +1,1 @@
-"""Future team registration and management feature."""
+"""Future read-only team information feature."""

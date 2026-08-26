@@ -71,9 +71,21 @@ class ServerStatsCog(
 
         await interaction.response.defer(ephemeral=True)
         result = await self.service.refresh(guild)
-        message = f"Server statistics refreshed; {len(result.updated_channel_ids)} channel(s) updated."
+        message = (
+            "Server statistics refreshed; "
+            f"{len(result.updated_channel_ids)} channel(s) updated."
+        )
         if result.provider_error is not None:
-            message += " The provider failed, so Cody kept its previous competition values."
+            if result.snapshot.competition_stale:
+                message += (
+                    " The provider failed, so Cody marked its bounded fallback "
+                    "values as stale."
+                )
+            else:
+                message += (
+                    " Competition data was unavailable or expired, so those "
+                    "displays were marked unavailable."
+                )
         if result.missing_channel_ids or result.failed_channel_ids:
             message += " Some channels could not be updated; check Cody's logs."
         await interaction.edit_original_response(content=message)

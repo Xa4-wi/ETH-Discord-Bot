@@ -1,1 +1,1 @@
-"""Discord layouts for team operations."""
+"""Discord layouts for read-only team information."""

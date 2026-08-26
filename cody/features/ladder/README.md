@@ -4,64 +4,61 @@
 
 - Lifecycle: **Planned**
 - Extension loaded: **No**
-- Project label: `area: ladder`
+- Project labels: `area: ladder`, `area: backend`, `area: integrations`
 - Existing code: package, cog, service, and view placeholders; empty rank content
 
 ## Purpose
 
-Let participants and organizers inspect ETH Battlecode standings, team ratings,
-ranks, and progression through clear Discord interfaces.
+Present canonical backend-computed standings, team ratings, ranks, layers, and
+progression in Discord without implementing competition calculations in Cody.
 
 ## Current implementation
 
-No ladder commands or calculations exist. `content/ranks/ranks.json` is empty,
-the feature modules are placeholders, and the shared domain layer has no rating
-model. Server statistics currently displays only a provider-supplied ladder
-leader and does not implement the ladder itself.
+No ladder commands, models, calculations, or provider exist. Server statistics
+can display a provider-supplied leader summary but is not a leaderboard source.
+`content/ranks/ranks.json` is empty and nothing here is loaded.
 
 ## Intended scope
 
-- Read-only standings and individual team-rank lookup.
-- Rank presentation based on approved competition rules and content.
-- Pagination or filtering for lists that exceed one Discord response.
-- Clear handling of unranked teams, tied ratings, provisional results, and
-  competition phases.
+- Read-only `ranking.get` and `ranking.leaderboard` actions.
+- Backend ordering, ties, provisional/unranked state, and phase-aware results.
+- Opaque cursor pagination and Discord-safe presentation.
+- Optional local descriptions/artwork for ranks, never calculation thresholds.
 
-Rating calculation and result authority must be decided before implementation.
-If the official backend owns ratings, Cody should display translated backend
-data instead of independently recomputing it.
+Elo, rating changes, rank thresholds, layer assignment, match outcomes, and
+leaderboard ordering are exclusively Main Backend responsibilities.
 
 ## Dependencies and boundaries
 
-- Team identity comes from the teams feature/shared team model.
-- Match results come from the matches feature or official backend adapter.
-- Rank names and thresholds belong in validated structured content.
-- Backend JSON translation belongs in a provider/integration, not `views.py`.
-- Server statistics may consume the resolved leader but must not become the
-  ladder's source of truth.
+- Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md).
+- Backend JSON translation belongs behind the shared backend client/provider,
+  not in cogs or views.
+- Team and match identities are opaque backend data.
+- `content/ranks` may contain approved presentation copy only. Cody must not use
+  it to derive a team's official state.
+- Server statistics may display the returned leader but never becomes canonical.
 
 ## Development checklist
 
-- [ ] Approve rating ownership, tie behavior, and rank/provisional rules.
-- [ ] Define provider-neutral ladder and standing models.
-- [ ] Populate and validate `content/ranks/ranks.json` if rank content is used.
-- [ ] Implement a provider or service for standings and team lookup.
-- [ ] Define the first slash commands and pagination behavior.
-- [ ] Build Cody-styled standings and team-rank views.
-- [ ] Handle unavailable/stale data without presenting false standings.
-- [ ] Add extension setup and update the server-stats integration if appropriate.
-- [ ] Document final commands, data source, and refresh semantics here.
+- [x] Lock ranking and ordering authority to the Main Backend.
+- [ ] Finalize ranking fields, public/actor visibility, ties, and pagination.
+- [ ] Define strict provider-neutral ranking and standing models.
+- [ ] Decide whether approved rank descriptions/artwork are needed.
+- [ ] Implement read services using `cody.integrations.backend`.
+- [ ] Define read-only commands and paginated Cody-styled views.
+- [ ] Handle unavailable, stale, unranked, and malformed responses safely.
+- [ ] Load only after backend contract and Discord acceptance checks pass.
 
 ## Testing
 
-- Test ordering, ties, rank boundaries, unranked teams, and empty standings.
-- Test malformed/stale provider data and backend outages.
-- Test pagination limits and Discord-safe display lengths.
-- Verify the ladder leader agrees with the complete standings snapshot.
-- Run integration tests against a fixed representative ladder fixture.
+Test backend-provided order without local recalculation, ties, provisional and
+unranked states, empty pages, cursors, malformed/stale responses, outages, and
+Discord limits. Verify the displayed summary leader agrees with a fixed backend
+fixture and no local file can alter official rating/rank/layer values.
 
 ## Operational notes
 
-Read-only commands normally need no elevated user permissions. Any organizer
-operation that changes ratings requires explicit authorization, audit behavior,
-and an approved source-of-truth design.
+Read-only commands need no elevated Discord permission. The feature must show an
+`as_of`/last-success indicator for cached data once caching exists. Final fields,
+visibility, ordering, cursor lifetime, and cache TTL remain open in the
+integration specification.

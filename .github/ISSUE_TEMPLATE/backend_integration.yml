@@ -6,12 +6,20 @@ labels:
   - "area: backend"
   - "area: integrations"
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow `CODY_INTEGRATION_SPEC.md`. Official competition traffic must use
+        the Main Backend action endpoint. Cody must not connect directly to a
+        database, storage system, or match infrastructure, and competition
+        actions are read-only except approved ticket lifecycle mutations.
+
   - type: input
     id: system
     attributes:
-      label: System or service
-      description: Name the API, database, service, or ETH Battlecode component.
-      placeholder: ETH Battlecode game backend
+      label: Main Backend action
+      description: Name the versioned action or contract area being implemented.
+      placeholder: statistics.summary
     validations:
       required: true
 

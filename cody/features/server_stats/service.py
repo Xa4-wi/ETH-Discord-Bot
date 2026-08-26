@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from collections.abc import Callable
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
 
@@ -12,6 +14,8 @@ import discord
 from cody.features.server_stats.constants import (
     DISCORD_CHANNEL_NAME_LIMIT,
     GRID_OUTPUT_UNIT,
+    MAX_BACKEND_CLOCK_SKEW_SECONDS,
+    MAX_COMPETITION_STALE_SECONDS,
     SERVER_STATS_CONFIG,
 )
 from cody.features.server_stats.models import (
@@ -36,9 +40,18 @@ class ServerStatsService:
         self,
         provider: StatsProvider,
         config: ServerStatsConfig = SERVER_STATS_CONFIG,
+        *,
+        max_stale_seconds: int = MAX_COMPETITION_STALE_SECONDS,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
+        if not 0 <= max_stale_seconds <= MAX_COMPETITION_STALE_SECONDS:
+            raise ValueError(
+                "Competition stale time must be between zero and 30 minutes."
+            )
         self.provider = provider
         self.config = config
+        self.max_stale_seconds = max_stale_seconds
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
         self.last_successful_refresh: datetime | None = None
         self._last_competition_stats: CompetitionStats | None = None
         self._refresh_lock = asyncio.Lock()
@@ -47,13 +60,16 @@ class ServerStatsService:
         """Refresh each configured channel, renaming only changed channels."""
 
         async with self._refresh_lock:
-            competition_stats, provider_error = await self._competition_stats()
+            refreshed_at = self._clock()
+            competition_stats, provider_error, competition_stale = (
+                await self._competition_stats(refreshed_at)
+            )
             discord_stats = collect_discord_stats(guild, self.config)
-            refreshed_at = datetime.now(timezone.utc)
             snapshot = ServerStatsSnapshot(
                 discord=discord_stats,
                 competition=competition_stats,
                 refreshed_at=refreshed_at,
+                competition_stale=competition_stale,
             )
             desired_names = build_channel_names(snapshot, self.config)
 
@@ -102,18 +118,64 @@ class ServerStatsService:
 
     async def _competition_stats(
         self,
-    ) -> tuple[CompetitionStats | None, str | None]:
+        now: datetime,
+    ) -> tuple[CompetitionStats | None, str | None, bool]:
         try:
             stats = await self.provider.fetch_stats()
         except Exception as error:
             LOGGER.exception(
-                "Could not fetch competition statistics. Keeping previous values."
+                "Could not fetch competition statistics. Checking bounded fallback."
             )
-            return self._last_competition_stats, str(error)
+            cached = self._valid_cached_stats(now)
+            return cached, str(error), cached is not None
 
+        if stats is None:
+            # Discord-only mode is an explicit instruction to stop publishing
+            # backend-owned values, including values left by an old fixture.
+            self._last_competition_stats = None
+            self.last_successful_refresh = None
+            return None, None, False
+
+        source_time = stats.as_of or now
+        source_error = self._source_time_error(source_time, now)
+        if source_error is not None:
+            LOGGER.error("Rejected competition statistics: %s", source_error)
+            cached = self._valid_cached_stats(now)
+            return cached, source_error, cached is not None
+
+        if stats.as_of is None:
+            stats = replace(stats, as_of=source_time)
         self._last_competition_stats = stats
-        self.last_successful_refresh = datetime.now(timezone.utc)
-        return stats, None
+        self.last_successful_refresh = now
+        return stats, None, False
+
+    def _valid_cached_stats(self, now: datetime) -> CompetitionStats | None:
+        stats = self._last_competition_stats
+        if stats is None or self.last_successful_refresh is None:
+            return None
+        source_time = stats.as_of or self.last_successful_refresh
+        age = (now - source_time).total_seconds()
+        if -MAX_BACKEND_CLOCK_SKEW_SECONDS <= age <= self.max_stale_seconds:
+            return stats
+        LOGGER.warning(
+            "Discarding expired competition statistics | age_seconds=%s max_seconds=%s",
+            round(age),
+            self.max_stale_seconds,
+        )
+        self._last_competition_stats = None
+        self.last_successful_refresh = None
+        return None
+
+    def _source_time_error(self, source_time: datetime, now: datetime) -> str | None:
+        if source_time.tzinfo is None or source_time.utcoffset() is None:
+            return "Competition statistics as_of must be timezone-aware."
+        if source_time.utcoffset() != timedelta(0):
+            return "Competition statistics as_of must use UTC."
+        if source_time > now + timedelta(seconds=MAX_BACKEND_CLOCK_SKEW_SECONDS):
+            return "Competition statistics as_of is too far in the future."
+        if (now - source_time).total_seconds() > self.max_stale_seconds:
+            return "Competition statistics exceeded the 30-minute display age."
+        return None
 
 
 async def update_server_stats(
@@ -276,7 +338,10 @@ def collect_discord_stats(
     elif cached_members:
         member_count = len(eligible_members)
     else:
-        member_count = guild.member_count or 0
+        # Discord's aggregate guild count includes bots. Returning zero is
+        # safer than publishing a value that contradicts bot exclusion when
+        # the required Server Members cache is unavailable.
+        member_count = 0
 
     return DiscordStats(
         members=member_count,
@@ -326,31 +391,52 @@ def build_channel_names(
     }
 
     competition = snapshot.competition
-    if competition is not None:
-        names.update(
-            {
-                config.active_teams_channel_id: format_channel_name(
-                    "⚔️",
-                    "Active Teams",
-                    competition.active_teams,
-                ),
-                config.matches_today_channel_id: format_channel_name(
-                    "🎮",
-                    "Matches Today",
-                    competition.matches_today,
-                ),
-                config.grid_output_channel_id: format_channel_name(
-                    "☀️",
-                    "Grid Output",
-                    format_grid_output(competition.grid_output),
-                ),
-                config.ladder_leader_channel_id: format_channel_name(
-                    "🏆",
-                    "Ladder Leader",
-                    competition.ladder_leader,
-                ),
-            }
+    if competition is None:
+        competition_values: tuple[Any, Any, Any, Any] = (
+            "Unavailable",
+            "Unavailable",
+            "Unavailable",
+            "Unavailable",
         )
+    else:
+        competition_values = (
+            competition.active_teams,
+            competition.matches_today,
+            format_grid_output(competition.grid_output),
+            competition.ladder_leader,
+        )
+        if snapshot.competition_stale:
+            timestamp = (competition.as_of or snapshot.refreshed_at).strftime(
+                "%H:%MZ"
+            )
+            competition_values = tuple(
+                f"{value} · stale {timestamp}" for value in competition_values
+            )
+
+    names.update(
+        {
+            config.active_teams_channel_id: format_channel_name(
+                "⚔️",
+                "Active Teams",
+                competition_values[0],
+            ),
+            config.matches_today_channel_id: format_channel_name(
+                "🎮",
+                "Matches Today",
+                competition_values[1],
+            ),
+            config.grid_output_channel_id: format_channel_name(
+                "☀️",
+                "Grid Output",
+                competition_values[2],
+            ),
+            config.ladder_leader_channel_id: format_channel_name(
+                "🏆",
+                "Ladder Leader",
+                competition_values[3],
+            ),
+        }
+    )
     return names
 
 

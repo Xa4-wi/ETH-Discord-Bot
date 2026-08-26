@@ -8,12 +8,14 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class CompetitionStats:
-    """Competition values supplied by a static or remote provider."""
+    """Validated competition values plus their source snapshot time."""
 
     active_teams: int
     matches_today: int
     grid_output: float
     ladder_leader: str
+    ladder_leader_team_id: str | None = None
+    as_of: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,7 @@ class ServerStatsSnapshot:
     discord: DiscordStats
     competition: CompetitionStats | None
     refreshed_at: datetime
+    competition_stale: bool = False
 
 
 @dataclass(frozen=True)

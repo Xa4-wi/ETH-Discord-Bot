@@ -1,5 +1,10 @@
 # Cody development workflow
 
+All work that reads or changes official competition data must follow
+[`CODY_INTEGRATION_SPEC.md`](CODY_INTEGRATION_SPEC.md). The Main Backend is the
+only approved integration point; Cody-side competition mutations and direct
+database/storage/infrastructure connections are out of scope.
+
 GitHub calls tags **labels**. This repository uses labels for work type, product
 area, priority, size, and exceptional state. GitHub Projects provides the
 status board and overview.
@@ -17,7 +22,7 @@ Every open issue should normally have:
 | Label family | Values |
 | --- | --- |
 | Type | Feature, bug, task, maintenance, documentation |
-| Area | Discord, welcome, backend, database, integrations, teams, matches, ladder, lore, admin, website, infrastructure |
+| Area | Discord, welcome, backend, backend-owned PostgreSQL, integrations, participants, teams, submissions, matches, ladder, events, lore, admin, website, infrastructure |
 | Priority | Critical, high, medium, low |
 | Size | Small, medium, large |
 | Special | Blocked, needs decision, security, good first issue, help wanted |

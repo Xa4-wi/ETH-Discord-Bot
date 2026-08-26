@@ -1,1 +1,1 @@
-"""Future player domain model."""
+"""Future participant display model derived from canonical backend responses."""

@@ -1,1 +1,1 @@
-"""Team registration and management services."""
+"""Future read-only team information services."""

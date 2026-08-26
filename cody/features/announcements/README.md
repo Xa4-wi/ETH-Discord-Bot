@@ -30,10 +30,12 @@ setup. No announcements are currently sent by Cody.
 ## Dependencies and boundaries
 
 - Organizer authorization should reuse `cody.shared.permissions`.
-- Competition-triggered announcements may consume a future Battlecode API event,
-  but provider translation does not belong in the cog.
-- Scheduling that must survive restarts requires the database integration; an
-  in-memory timer alone is not sufficient.
+- Competition-triggered announcements may consume only an approved Main Backend
+  action/event contract; Cody never connects to match infrastructure directly.
+- Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md). Provider
+  translation belongs behind the shared backend client, not in the cog.
+- Restart-safe scheduling must be owned by the Main Backend or another explicitly
+  approved service. Cody does not gain a direct database for timers.
 - Match, ladder, and team state remain owned by their respective features.
 
 ## Development checklist
@@ -45,7 +47,8 @@ setup. No announcements are currently sent by Cody.
 - [ ] Implement authorization and mention-safety rules.
 - [ ] Implement service-level deduplication and delivery results.
 - [ ] Build Cody-styled views for preview and published messages.
-- [ ] Add persistence before enabling restart-safe scheduling.
+- [ ] Add an approved Main Backend scheduling/event contract before enabling
+  restart-safe scheduled announcements.
 - [ ] Add extension setup and load only after manual Discord validation.
 - [ ] Document final commands, event sources, and permissions here.
 

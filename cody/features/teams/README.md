@@ -4,62 +4,64 @@
 
 - Lifecycle: **Planned**
 - Extension loaded: **No**
-- Project label: `area: teams`
-- Existing code: package, cog, service, view, and shared team-model placeholders
+- Project labels: `area: teams`, `area: backend`, `area: integrations`
+- Existing code: package, cog, service, view, and shared-model placeholders
 
 ## Purpose
 
-Let participants register, inspect, and manage ETH Battlecode teams through
-Discord while enforcing competition membership and organizer rules.
+Present the invoking participant's canonical ETH Battlecode team and approved
+member/submission metadata inside Discord. Team registration and management
+remain website/backend workflows.
 
 ## Current implementation
 
-No team commands, registration service, storage, or model fields exist.
-`cody/models/team.py`, `cody/integrations/database.py`, and the feature modules
-are placeholders. Nothing in the team feature is currently loaded.
+No team commands, service, response model, or backend gateway exists. The files
+are unloaded placeholders and must not be described as an available feature.
 
 ## Intended scope
 
-- Create and inspect a team using a stable team identifier.
-- Join, leave, invite, or remove members according to approved roster rules.
-- Assign team ownership/captain responsibilities and handle transfers safely.
-- Enforce unique membership, team-size limits, deadlines, and locked competition
-  phases when those rules are finalized.
-- Present organizer-safe recovery actions without exposing private user data.
+- Read-only `team.get`, `team.members`, and `team.submissions` actions.
+- Backend-authorized display of the actor's own team information.
+- Pagination and Discord-safe presentation of approved member metadata.
+- User-safe handling for unlinked participants and participants without teams.
+
+Cody will not create, rename, disband, invite to, join, leave, or otherwise
+modify teams. Those operations are explicitly outside this feature.
 
 ## Dependencies and boundaries
 
-- Discord member identity should map to a persistent player/team model by ID.
-- Durable registration requires the database integration; in-memory state is not
-  sufficient.
-- Official website/backend ownership must be decided before Cody writes team data.
-- Match and ladder features consume team identity but must not mutate rosters.
-- Administrative recovery may be exposed through the admin feature while team
-  invariants remain enforced by this service.
+- Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md).
+- Identity is the immutable interaction user ID; the Main Backend resolves the
+  participant/team and authorizes every response.
+- The Participant Discord role may improve command visibility but never grants
+  backend team access.
+- The service consumes a provider/gateway backed by
+  `cody.integrations.backend`; cogs and views make no HTTP calls.
+- Cody has no team database, migrations, membership constraints, or write API.
+- Match and ladder features may consume approved team display models but never
+  mutate rosters.
 
 ## Development checklist
 
-- [ ] Approve roster size, ownership, invite, deadline, and duplicate-member rules.
-- [ ] Decide whether Cody or the official backend is the source of truth.
-- [ ] Define player/team models, stable IDs, and database constraints.
-- [ ] Implement persistence and migrations before accepting registrations.
-- [ ] Define the first participant and organizer commands.
-- [ ] Implement atomic service operations and clear domain errors.
-- [ ] Build private/public views with appropriate data disclosure.
-- [ ] Add extension setup only after restart and concurrency tests pass.
-- [ ] Document final commands, schema, configuration, and recovery process here.
+- [x] Lock team ownership and all mutations to the website/Main Backend.
+- [ ] Finalize `team.get`, `team.members`, and `team.submissions` schemas.
+- [ ] Finalize member-field visibility, ordering, and cursor pagination.
+- [ ] Add provider-neutral read models and strict response translation.
+- [ ] Implement the feature service using the shared backend client.
+- [ ] Define read-only commands and Cody-styled private/public views.
+- [ ] Handle `USER_NOT_LINKED`, `NO_TEAM`, permission, timeout, and schema errors.
+- [ ] Load the extension only after contract and Discord acceptance checks pass.
 
 ## Testing
 
-- Test create, invite, join, leave, ownership transfer, and disband rules.
-- Test duplicate requests, concurrent joins, full teams, and locked deadlines.
-- Test persistence across bot restart and migration rollback/recovery behavior.
-- Verify users cannot modify teams they do not control.
-- Verify public responses reveal no unnecessary Discord or backend identifiers.
+Tests must verify unchanged Discord snowflakes, actor/guild/interaction context,
+backend authorization failures, no-team behavior, pagination, Discord limits,
+mention safety, and unavailable/malformed responses. An architecture test should
+continue to reject team write actions and direct database access.
 
 ## Operational notes
 
-Registration actions should generally respond ephemerally until a change is
-confirmed. Cody needs only the Discord permissions required for its command
-responses and any explicitly approved role assignment; it should not require
-Administrator.
+Read-only team commands need ordinary Discord response permissions. They do not
+need Manage Roles or Administrator. Names and Discord roles are presentation
+data only; no response should expose unnecessary backend or Discord identifiers.
+Backend configuration and open schemas are documented in the integration spec.

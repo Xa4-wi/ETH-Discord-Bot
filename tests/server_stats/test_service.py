@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 import unittest
 
@@ -116,6 +117,14 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stats.members, 0)
         self.assertEqual(stats.umbral_city, 0)
 
+    def test_missing_member_cache_does_not_use_bot_inclusive_total(self) -> None:
+        guild = FakeGuild([], [])
+        guild.member_count = 25
+
+        stats = collect_discord_stats(guild, CONFIG)
+
+        self.assertEqual(stats.members, 0)
+
     def test_channel_names_follow_the_documented_format(self) -> None:
         snapshot = ServerStatsSnapshot(
             discord=DiscordStats(123, 64, 41, 18),
@@ -155,12 +164,21 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(len(channel.edit_calls) == 1 for channel in channels))
 
     async def test_provider_failure_keeps_last_competition_values(self) -> None:
-        stats = CompetitionStats(27, 143, 84.7, "Team X")
+        refreshed_at = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)
+        stats = CompetitionStats(
+            27,
+            143,
+            84.7,
+            "Team X",
+            as_of=refreshed_at,
+        )
         channels = [FakeChannel(channel_id) for channel_id in range(1, 9)]
         guild = FakeGuild([member(101), member(102), member(103)], channels)
+        clock_values = iter((refreshed_at, refreshed_at + timedelta(minutes=10)))
         service = ServerStatsService(
             SequenceProvider(stats, RuntimeError("backend unavailable")),
             CONFIG,
+            clock=lambda: next(clock_values),
         )
 
         await service.refresh(guild)
@@ -171,9 +189,59 @@ class ServerStatsServiceTests(unittest.IsolatedAsyncioTestCase):
             result = await service.refresh(guild)
 
         self.assertEqual(result.snapshot.competition, stats)
+        self.assertTrue(result.snapshot.competition_stale)
         self.assertEqual(result.provider_error, "backend unavailable")
-        self.assertEqual(channels[4].name, "⚔️ Active Teams · 27")
-        self.assertEqual(len(channels[4].edit_calls), 1)
+        self.assertEqual(
+            channels[4].name,
+            "⚔️ Active Teams · 27 · stale 12:00Z",
+        )
+        self.assertEqual(len(channels[4].edit_calls), 2)
+
+    async def test_expired_competition_fallback_is_marked_unavailable(self) -> None:
+        refreshed_at = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)
+        stats = CompetitionStats(
+            27,
+            143,
+            84.7,
+            "Team X",
+            as_of=refreshed_at,
+        )
+        channels = [FakeChannel(channel_id) for channel_id in range(1, 9)]
+        guild = FakeGuild([member(101)], channels)
+        clock_values = iter((refreshed_at, refreshed_at + timedelta(minutes=31)))
+        service = ServerStatsService(
+            SequenceProvider(stats, RuntimeError("backend unavailable")),
+            CONFIG,
+            clock=lambda: next(clock_values),
+        )
+
+        await service.refresh(guild)
+        with self.assertLogs(
+            "cody.features.server_stats.service",
+            level="ERROR",
+        ):
+            result = await service.refresh(guild)
+
+        self.assertIsNone(result.snapshot.competition)
+        self.assertFalse(result.snapshot.competition_stale)
+        self.assertEqual(channels[4].name, "⚔️ Active Teams · Unavailable")
+
+    async def test_discord_only_mode_clears_old_competition_values(self) -> None:
+        channels = [FakeChannel(channel_id) for channel_id in range(1, 9)]
+        channels[4].name = "⚔️ Active Teams · 12"
+        channels[5].name = "🎮 Matches Today · 37"
+        channels[6].name = "☀️ Grid Output · 42.8 GW"
+        channels[7].name = "🏆 Ladder Leader · Team X"
+        guild = FakeGuild([member(101)], channels)
+        service = ServerStatsService(SequenceProvider(None), CONFIG)
+
+        result = await service.refresh(guild)
+
+        self.assertIsNone(result.snapshot.competition)
+        self.assertEqual(channels[4].name, "⚔️ Active Teams · Unavailable")
+        self.assertEqual(channels[5].name, "🎮 Matches Today · Unavailable")
+        self.assertEqual(channels[6].name, "☀️ Grid Output · Unavailable")
+        self.assertEqual(channels[7].name, "🏆 Ladder Leader · Unavailable")
 
     def test_permission_report_shows_effective_access_and_roles(self) -> None:
         channel = FakePermissionChannel(1, "Members", "Server Status")

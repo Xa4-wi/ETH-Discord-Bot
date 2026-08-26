@@ -5,27 +5,19 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
 import logging
-import os
-import re
 
 import discord
 
 from cody.features.monitoring.models import DiscordLogEntry
 from cody.shared.colors import CodyColor
+from cody.shared.redaction import (
+    redact_secrets,
+    sensitive_environment_values,
+)
 
 
 MAX_DISCORD_LOG_MESSAGE = 3500
 MONITORING_LOGGER_PREFIX = "cody.features.monitoring"
-
-_TOKEN_PATTERN = re.compile(
-    r"\b[A-Za-z0-9_-]{23,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{25,}\b"
-)
-_SECRET_ASSIGNMENT_PATTERN = re.compile(
-    r"(?i)\b(token|secret|password|authorization)\s*[:=]\s*\S+"
-)
-_BOT_AUTH_PATTERN = re.compile(
-    r"(?i)\b(authorization\s*[:=]\s*Bot)\s+\S+"
-)
 
 
 class DiscordLogHandler(logging.Handler):
@@ -42,9 +34,9 @@ class DiscordLogHandler(logging.Handler):
             return
 
         try:
-            token = os.getenv("DISCORD_TOKEN")
-            sensitive_values = (token,) if token else ()
-            self._enqueue(log_entry_from_record(record, sensitive_values))
+            self._enqueue(
+                log_entry_from_record(record, sensitive_environment_values())
+            )
         except Exception:
             self.handleError(record)
 
@@ -75,16 +67,7 @@ def sanitize_log_message(
 ) -> str:
     """Redact secrets and fit a log summary within Discord embed limits."""
 
-    sanitized = message
-    for value in sensitive_values:
-        if value:
-            sanitized = sanitized.replace(value, "[REDACTED]")
-    sanitized = _TOKEN_PATTERN.sub("[REDACTED TOKEN]", sanitized)
-    sanitized = _BOT_AUTH_PATTERN.sub(r"\1 [REDACTED]", sanitized)
-    sanitized = _SECRET_ASSIGNMENT_PATTERN.sub(
-        lambda match: f"{match.group(1)}=[REDACTED]",
-        sanitized,
-    )
+    sanitized = redact_secrets(message, sensitive_values)
     sanitized = " ".join(sanitized.split()) or "No message was supplied."
     if len(sanitized) <= MAX_DISCORD_LOG_MESSAGE:
         return sanitized
