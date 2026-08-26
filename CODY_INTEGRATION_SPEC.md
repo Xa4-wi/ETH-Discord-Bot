@@ -3,7 +3,7 @@
 | Document property | Value |
 | --- | --- |
 | Contract major version | `1` |
-| Repository document revision | `2.3` |
+| Repository document revision | `2.4` |
 | Architecture boundary | **Locked** |
 | Wire/action schemas | **Draft until backend review** |
 | Ticket backend database | **PostgreSQL; backend access only** |
@@ -63,7 +63,7 @@ feature is available today.
 | Capability | Current repository state | V1 target |
 | --- | --- | --- |
 | Shared backend client | Implemented but inactive without configuration | One long-lived authenticated integration boundary |
-| Access onboarding | Discord panel, Visitor/Sponsor flow, and `participant.get` gateway implemented; Participant path inactive without production backend configuration | Backend-verified Participant role plus Discord-local Sponsor review and Visitor access |
+| Access onboarding | Versioned rule acceptance, Discord role panel, Visitor/Sponsor flow, and `participant.get` gateway implemented; Participant path inactive without production backend configuration | Accepted rules plus backend-verified Participant role or Discord-local Sponsor/Visitor access |
 | Participant profile | No Discord feature | Read-only `participant.get` |
 | Teams | Planned skeleton | Read-only team and member information |
 | Submissions | No Discord feature | Read-only metadata; never source code |
@@ -195,9 +195,12 @@ Discord roles as proof of competition identity.
 
 Discord roles MAY gate local diagnostics, command visibility, community-role
 statistics, Discord channel visibility, access onboarding, and temporary ticket
-controls. A Participant role MAY be assigned only after the Main Backend returns
-a valid `participant.get` result for the invoking Discord actor. The resulting
-role is still presentation/channel-routing state and MUST NOT grant access to
+controls. Cody's local access onboarding MUST require a `Rules Accepted` marker
+before assigning Participant, Sponsor Under Review, or Visitor. The marker MUST
+have no permissions by itself and MUST NOT be treated as competition identity.
+A Participant role MAY be assigned only after rule acceptance and a valid
+`participant.get` result for the invoking Discord actor. The resulting role is
+still presentation/channel-routing state and MUST NOT grant access to
 participant, team, submission, match, ranking, event, or future backend ticket
 data by itself. Every later backend request independently forwards the actor ID,
 and the backend authorizes it. A backend-facing ticket mutation similarly
@@ -882,7 +885,8 @@ the backend's diagnostic `error.message` verbatim.
 | Ratings, ranks, layers, leaderboard | Main Backend/ranking subsystem |
 | Event state | Main Backend |
 | Durable ticket intake/status | Main Backend when integration is enabled |
-| Participant/Sponsor/Under Review/Visitor Discord roles and pending Sponsor review card | Cody/Discord, local and non-canonical |
+| Versioned Discord server-rule wording | Cody repository / ETH Battlecode organisers |
+| Rules Accepted/Participant/Sponsor/Under Review/Visitor Discord roles and pending Sponsor review card | Cody/Discord, local and non-canonical |
 | Temporary Discord ticket channel | Cody/Discord, non-canonical |
 | Read cache | Cody, non-canonical and disposable |
 

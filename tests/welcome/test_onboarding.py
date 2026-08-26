@@ -8,6 +8,8 @@ from cody.config import (
     PARTICIPANT_ROLE_ID,
     ROLE_CHANNEL_ID,
     ROLE_WELCOME_IMAGE,
+    RULES_ACCEPTED_ROLE_ID,
+    RULES_IMAGE,
     SPONSOR_REVIEW_CHANNEL_ID,
     SPONSOR_ROLE_ID,
     SPONSOR_UNDER_REVIEW_ROLE_ID,
@@ -20,14 +22,22 @@ from cody.features.welcome.providers import (
     ParticipantNotLinked,
     participant_link_from_data,
 )
-from cody.features.welcome.service import replace_access_role
+from cody.features.welcome.rules import load_server_rules
+from cody.features.welcome.service import (
+    accept_server_rules,
+    ensure_rules_accepted_role,
+    remove_access_roles,
+    replace_access_role,
+)
 from cody.features.welcome.views import (
     ROLE_PANEL_MARKER,
     RoleSelectionView,
+    RulesAcceptanceView,
     SponsorReviewView,
     pending_sponsor_marker,
     resolved_sponsor_review_embed,
     role_panel_embed,
+    rules_panel_embed,
     sponsor_applicant_id,
     sponsor_review_embed,
     website_signup_view,
@@ -46,6 +56,8 @@ class OnboardingConfigurationTests(unittest.TestCase):
         self.assertEqual(SPONSOR_UNDER_REVIEW_ROLE_ID, 1542164526022004877)
         self.assertEqual(VISITOR_ROLE_ID, 1542164969796272229)
         self.assertTrue(ROLE_WELCOME_IMAGE.is_file())
+        self.assertEqual(RULES_ACCEPTED_ROLE_ID, 1542198825756794971)
+        self.assertTrue(RULES_IMAGE.is_file())
 
     def test_admin_commands_have_role_checks_and_visibility(self) -> None:
         command_checks = {
@@ -61,6 +73,7 @@ class OnboardingConfigurationTests(unittest.TestCase):
             command_checks,
             {
                 "setup": ["admin_access_check"],
+                "enforce_rules": ["admin_access_check"],
                 "status": ["admin_access_check"],
             },
         )
@@ -70,11 +83,18 @@ class OnboardingConfigurationTests(unittest.TestCase):
 class OnboardingViewTests(unittest.IsolatedAsyncioTestCase):
     async def test_role_and_review_controls_are_persistent(self) -> None:
         controller = SimpleNamespace()
+        rules_view = RulesAcceptanceView(controller)
         role_view = RoleSelectionView(controller)
         review_view = SponsorReviewView(controller)
 
+        self.assertTrue(rules_view.is_persistent())
         self.assertTrue(role_view.is_persistent())
         self.assertTrue(review_view.is_persistent())
+        self.assertEqual(
+            [item.custom_id for item in rules_view.children],
+            ["cody:onboarding:rules:accept"],
+        )
+        self.assertEqual(str(rules_view.children[0].emoji), "✅")
         self.assertEqual(
             [item.custom_id for item in role_view.children],
             [
@@ -99,6 +119,16 @@ class OnboardingViewTests(unittest.IsolatedAsyncioTestCase):
             embed.image.url,
             f"attachment://{ROLE_WELCOME_IMAGE.name}",
         )
+
+    def test_rules_panel_contains_complete_versioned_content_and_artwork(self) -> None:
+        rules = load_server_rules()
+        embed = rules_panel_embed(rules, RULES_IMAGE.name)
+
+        self.assertEqual(len(rules.rules), 12)
+        self.assertEqual(len(embed.fields), 13)
+        self.assertLessEqual(len(embed), 6_000)
+        self.assertEqual(embed.image.url, f"attachment://{RULES_IMAGE.name}")
+        self.assertIn(f"VERSION {rules.version}", embed.footer.text)
 
     def test_review_marker_recovers_applicant_and_changes_when_resolved(self) -> None:
         member = SimpleNamespace(id=123456789012345678, mention="<@123456789012345678>")
@@ -190,6 +220,39 @@ class ParticipantProviderTests(unittest.IsolatedAsyncioTestCase):
 
 
 class AccessRoleServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_setup_fails_when_configured_acceptance_role_is_missing(self) -> None:
+        guild = SimpleNamespace(get_role=lambda role_id: None)
+
+        with self.assertRaisesRegex(RuntimeError, str(RULES_ACCEPTED_ROLE_ID)):
+            await ensure_rules_accepted_role(guild)
+
+    async def test_rules_acceptance_adds_marker_without_access_role(self) -> None:
+        accepted_role = SimpleNamespace(
+            id=RULES_ACCEPTED_ROLE_ID,
+            name="Rules Accepted",
+            managed=False,
+            permissions=discord.Permissions.none(),
+        )
+        guild = SimpleNamespace(
+            get_role=lambda role_id: (
+                accepted_role if role_id == RULES_ACCEPTED_ROLE_ID else None
+            ),
+            channels=[],
+        )
+        member = SimpleNamespace(
+            guild=guild,
+            roles=[SimpleNamespace(id=1)],
+            add_roles=AsyncMock(),
+        )
+
+        assigned = await accept_server_rules(member)
+
+        self.assertIs(assigned, accepted_role)
+        member.add_roles.assert_awaited_once_with(
+            accepted_role,
+            reason="Member accepted Cody's server rules",
+        )
+
     async def test_replaces_only_cody_access_roles(self) -> None:
         default_role = SimpleNamespace(id=1)
         unrelated_role = SimpleNamespace(id=55)
@@ -215,6 +278,24 @@ class AccessRoleServiceTests(unittest.IsolatedAsyncioTestCase):
         member.edit.assert_awaited_once_with(
             roles=[unrelated_role, visitor_role],
             reason="test",
+        )
+
+    async def test_rule_enforcement_removes_only_access_roles(self) -> None:
+        default_role = SimpleNamespace(id=1)
+        unrelated_role = SimpleNamespace(id=55)
+        sponsor_role = SimpleNamespace(id=SPONSOR_ROLE_ID)
+        guild = SimpleNamespace(id=1)
+        member = SimpleNamespace(
+            guild=guild,
+            roles=[default_role, unrelated_role, sponsor_role],
+            edit=AsyncMock(),
+        )
+
+        await remove_access_roles(member, reason="rules enforcement test")
+
+        member.edit.assert_awaited_once_with(
+            roles=[unrelated_role],
+            reason="rules enforcement test",
         )
 
 

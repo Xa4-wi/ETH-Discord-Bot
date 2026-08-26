@@ -23,7 +23,7 @@ class WelcomeViewTests(unittest.IsolatedAsyncioTestCase):
         buttons = payload[0]["components"][3]["components"]
         self.assertEqual(
             [button["label"] for button in buttons],
-            ["Rules", "Choose Role"],
+            ["Read & Accept Rules", "Choose Role"],
         )
         self.assertEqual(
             [button["url"] for button in buttons],

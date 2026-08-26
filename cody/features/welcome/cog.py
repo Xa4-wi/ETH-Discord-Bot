@@ -15,6 +15,7 @@ from cody.config import (
     PARTICIPANT_ROLE_ID,
     ROLE_CHANNEL_ID,
     ROLE_WELCOME_IMAGE,
+    RULES_IMAGE,
     RULES_CHANNEL_ID,
     STATS_MEMBERS_CHANNEL_ID,
     SPONSOR_REVIEW_CHANNEL_ID,
@@ -31,18 +32,28 @@ from cody.features.welcome.providers import (
     ParticipantNotLinked,
     ParticipantVerificationUnavailable,
 )
+from cody.features.welcome.rules import ServerRulesError, load_server_rules
 from cody.features.welcome.service import (
     OnboardingSetupError,
+    accept_server_rules,
+    ensure_rules_accepted_role,
+    find_rules_accepted_role,
+    remove_access_roles,
     replace_access_role,
     send_welcome_message,
 )
 from cody.features.welcome.views import (
     ROLE_PANEL_MARKER,
+    RULES_PANEL_PREFIX,
     RoleSelectionView,
+    RulesAcceptanceView,
     SponsorReviewView,
     pending_sponsor_marker,
     resolved_sponsor_review_embed,
+    role_channel_link_view,
     role_panel_embed,
+    rules_channel_link_view,
+    rules_panel_embed,
     sponsor_applicant_id,
     sponsor_review_embed,
     website_signup_view,
@@ -138,6 +149,7 @@ class OnboardingCog(
         self.participant_provider = participant_provider
 
         # Fixed custom IDs and no timeouts keep both workflows usable after restart.
+        self.bot.add_view(RulesAcceptanceView(self))
         self.bot.add_view(RoleSelectionView(self))
         self.bot.add_view(SponsorReviewView(self))
 
@@ -150,13 +162,22 @@ class OnboardingCog(
         if self._ready_initialised:
             return
         channel = self._role_channel()
+        rules_channel = self._rules_channel()
         if channel is None:
             LOGGER.error(
                 "Role-selection channel %s was not found or is not visible",
                 ROLE_CHANNEL_ID,
             )
             return
+        if rules_channel is None or rules_channel.guild.id != channel.guild.id:
+            LOGGER.error(
+                "Rules channel %s was not found or is not visible",
+                RULES_CHANNEL_ID,
+            )
+            return
         try:
+            await ensure_rules_accepted_role(channel.guild)
+            await self.ensure_rules_panel(rules_channel)
             await self.ensure_role_panel(channel)
         except (OnboardingSetupError, discord.Forbidden, discord.HTTPException):
             LOGGER.exception("Could not initialise Cody's role-selection panel")
@@ -169,9 +190,82 @@ class OnboardingCog(
                 self._backend_configuration_error or "backend not configured",
             )
         LOGGER.info(
-            "Access onboarding online | role_channel=%s sponsor_review=%s",
+            "Access onboarding online | rules_channel=%s role_channel=%s "
+            "sponsor_review=%s",
+            RULES_CHANNEL_ID,
             ROLE_CHANNEL_ID,
             SPONSOR_REVIEW_CHANNEL_ID,
+        )
+
+    async def accept_rules(self, interaction: discord.Interaction) -> None:
+        if (
+            interaction.channel_id != RULES_CHANNEL_ID
+            or interaction.guild is None
+            or not isinstance(interaction.user, discord.Member)
+        ):
+            await interaction.response.send_message(
+                "Rules can only be accepted in Cody's configured Rules channel.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            current_rules = load_server_rules()
+        except ServerRulesError as error:
+            LOGGER.error("Rules acceptance content failed validation: %s", error)
+            await interaction.response.send_message(
+                "Cody's server-rule content needs Admin attention.",
+                ephemeral=True,
+            )
+            return
+        expected_marker = f"{RULES_PANEL_PREFIX} {current_rules.version}"
+        if (
+            interaction.message is None
+            or self.bot.user is None
+            or interaction.message.author.id != self.bot.user.id
+            or not any(
+                embed.footer.text == expected_marker
+                for embed in interaction.message.embeds
+                if embed.footer is not None
+            )
+        ):
+            await interaction.response.send_message(
+                "This rules panel is outdated. Ask an Admin to run "
+                "`/onboarding setup`, then accept the current rules.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        try:
+            role = await accept_server_rules(interaction.user)
+        except OnboardingSetupError as error:
+            LOGGER.error("Rules acceptance setup failed: %s", error)
+            await interaction.edit_original_response(
+                content="Cody's Rules Accepted role setup needs Admin attention."
+            )
+            return
+        except (discord.Forbidden, discord.HTTPException):
+            LOGGER.exception("Discord rejected Rules Accepted role assignment")
+            await interaction.edit_original_response(
+                content=(
+                    "Cody could not record your acceptance. An Admin should check "
+                    "Manage Roles permission and Cody's role position."
+                )
+            )
+            return
+
+        LOGGER.info(
+            "Server rules accepted | member=%s role=%s",
+            interaction.user.id,
+            role.id,
+        )
+        await interaction.edit_original_response(
+            content=(
+                "Rules accepted. This acknowledgement does not unlock server "
+                "areas by itself; choose your access role to continue."
+            ),
+            view=role_channel_link_view(interaction.guild.id),
         )
 
     async def select_participant(self, interaction: discord.Interaction) -> None:
@@ -389,6 +483,26 @@ class OnboardingCog(
                 )
                 return
 
+            try:
+                accepted_role = find_rules_accepted_role(interaction.guild)
+            except OnboardingSetupError as error:
+                LOGGER.error("Sponsor review rules gate failed: %s", error)
+                await interaction.edit_original_response(
+                    content="Cody's Rules Accepted role setup needs Admin attention."
+                )
+                return
+            if accepted_role is None or not self._member_has_role(
+                applicant,
+                accepted_role.id,
+            ):
+                await interaction.edit_original_response(
+                    content=(
+                        "The applicant must accept the server rules before this "
+                        "Sponsor request can be resolved. No role was changed."
+                    )
+                )
+                return
+
             has_sponsor = self._member_has_role(applicant, SPONSOR_ROLE_ID)
             is_pending = self._member_has_role(
                 applicant,
@@ -474,19 +588,27 @@ class OnboardingCog(
 
     @app_commands.command(
         name="setup",
-        description="Create or refresh Cody's access-selection panel.",
+        description="Create or refresh Cody's rules and access-selection panels.",
     )
     @admin_only()
     async def setup_panel(self, interaction: discord.Interaction) -> None:
         channel = self._role_channel()
-        if channel is None or interaction.guild_id != channel.guild.id:
+        rules_channel = self._rules_channel()
+        if (
+            channel is None
+            or rules_channel is None
+            or rules_channel.guild.id != channel.guild.id
+            or interaction.guild_id != channel.guild.id
+        ):
             await interaction.response.send_message(
-                "The configured role-selection channel could not be resolved.",
+                "The configured Rules or role-selection channel could not be resolved.",
                 ephemeral=True,
             )
             return
         await interaction.response.defer(ephemeral=True, thinking=True)
         try:
+            await ensure_rules_accepted_role(channel.guild)
+            rules_message = await self.ensure_rules_panel(rules_channel)
             message = await self.ensure_role_panel(channel)
         except (OnboardingSetupError, discord.Forbidden, discord.HTTPException) as error:
             LOGGER.exception("Access-selection panel setup failed")
@@ -496,12 +618,120 @@ class OnboardingCog(
             return
         self._ready_initialised = True
         await interaction.edit_original_response(
-            content=f"Access selection is ready in {channel.mention}: {message.jump_url}"
+            content=(
+                f"Rules are ready in {rules_channel.mention}: {rules_message.jump_url}\n"
+                f"Access selection is ready in {channel.mention}: {message.jump_url}"
+            )
+        )
+
+    @app_commands.command(
+        name="enforce_rules",
+        description="Remove access roles from members who have not accepted the rules.",
+    )
+    @app_commands.describe(
+        confirm="Set true to perform the reversible access-role removal."
+    )
+    @admin_only()
+    async def enforce_rules(
+        self,
+        interaction: discord.Interaction,
+        confirm: bool = False,
+    ) -> None:
+        guild = interaction.guild
+        if guild is None:
+            await interaction.response.send_message(
+                "This command can only be used inside a server.",
+                ephemeral=True,
+            )
+            return
+        try:
+            accepted_role = find_rules_accepted_role(guild)
+        except OnboardingSetupError as error:
+            await interaction.response.send_message(
+                f"Rules acceptance setup needs attention: {error}",
+                ephemeral=True,
+            )
+            return
+        if accepted_role is None:
+            await interaction.response.send_message(
+                "Run `/onboarding setup` before enforcing rule acceptance.",
+                ephemeral=True,
+            )
+            return
+
+        access_roles = [
+            role
+            for role_id in (
+                PARTICIPANT_ROLE_ID,
+                SPONSOR_ROLE_ID,
+                SPONSOR_UNDER_REVIEW_ROLE_ID,
+                VISITOR_ROLE_ID,
+            )
+            if (role := guild.get_role(role_id)) is not None
+        ]
+        affected = {
+            member.id: member
+            for role in access_roles
+            for member in role.members
+            if not member.bot
+            and not self._member_has_role(member, accepted_role.id)
+        }
+        if not confirm:
+            await interaction.response.send_message(
+                (
+                    f"Rule enforcement preview: **{len(affected)}** member(s) "
+                    "currently have an access role without Rules Accepted. "
+                    "Run `/onboarding enforce_rules confirm:true` to remove only "
+                    "their Cody access roles; unrelated roles are preserved."
+                ),
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        removed = 0
+        failed = 0
+        for member in affected.values():
+            had_pending_sponsor = self._member_has_role(
+                member,
+                SPONSOR_UNDER_REVIEW_ROLE_ID,
+            )
+            try:
+                await remove_access_roles(
+                    member,
+                    reason=(
+                        "Cody rules gate enforced by Discord Admin "
+                        f"{interaction.user.id}"
+                    ),
+                )
+            except (discord.Forbidden, discord.HTTPException):
+                failed += 1
+                LOGGER.exception(
+                    "Could not revoke unaccepted access roles | member=%s",
+                    member.id,
+                )
+                continue
+            removed += 1
+            if had_pending_sponsor:
+                await self._withdraw_pending_review(member)
+
+        LOGGER.warning(
+            "Rules gate enforced | admin=%s removed=%s failed=%s",
+            interaction.user.id,
+            removed,
+            failed,
+        )
+        await interaction.edit_original_response(
+            content=(
+                f"Rules gate enforced: access roles removed from **{removed}** "
+                f"member(s); **{failed}** failed. Affected members keep unrelated "
+                "roles and can accept the rules, then select access again."
+            )
         )
 
     @app_commands.command(
         name="status",
-        description="Check Cody's onboarding channels, roles, and backend setup.",
+        description="Check Cody's rules, onboarding, roles, and backend setup.",
     )
     @admin_only()
     async def status(self, interaction: discord.Interaction) -> None:
@@ -540,10 +770,18 @@ class OnboardingCog(
                 backend_reachable = True
                 backend_status = "reachable and participant contract valid"
 
+        rules_channel = guild.get_channel(RULES_CHANNEL_ID)
         role_channel = guild.get_channel(ROLE_CHANNEL_ID)
         review_channel = guild.get_channel(SPONSOR_REVIEW_CHANNEL_ID)
         bot_member = guild.me
+        rules_role_error: str | None = None
+        try:
+            rules_accepted_role = find_rules_accepted_role(guild)
+        except OnboardingSetupError as error:
+            rules_accepted_role = None
+            rules_role_error = str(error)
         configured_roles = {
+            "Rules Accepted": rules_accepted_role,
             "Participant": guild.get_role(PARTICIPANT_ROLE_ID),
             "Sponsor": guild.get_role(SPONSOR_ROLE_ID),
             "Under Review": guild.get_role(SPONSOR_UNDER_REVIEW_ROLE_ID),
@@ -556,12 +794,24 @@ class OnboardingCog(
             if isinstance(role_channel, discord.TextChannel) and bot_member is not None
             else None
         )
+        rules_permissions = (
+            rules_channel.permissions_for(bot_member)
+            if isinstance(rules_channel, discord.TextChannel)
+            and bot_member is not None
+            else None
+        )
         review_permissions = (
             review_channel.permissions_for(bot_member)
             if isinstance(review_channel, discord.TextChannel) and bot_member is not None
             else None
         )
         website_ready = website_signup_view(get_website_signup_url()) is not None
+        try:
+            load_server_rules()
+        except ServerRulesError:
+            rules_content_ready = False
+        else:
+            rules_content_ready = True
         entry_channel_ids = {
             STATS_MEMBERS_CHANNEL_ID,
             WELCOME_CHANNEL_ID,
@@ -588,6 +838,36 @@ class OnboardingCog(
             and not unexpected_public_channels
         )
         roles_ready = all(configured_roles.values())
+        access_roles = [
+            role
+            for name, role in configured_roles.items()
+            if name in {"Participant", "Sponsor", "Under Review", "Visitor"}
+            and role is not None
+        ]
+        access_without_acceptance = {
+            member.id
+            for role in access_roles
+            for member in role.members
+            if rules_accepted_role is None
+            or not self._member_has_role(member, rules_accepted_role.id)
+        }
+        acceptance_role_overwrites = [
+            channel
+            for channel in guild.channels
+            if rules_accepted_role is not None
+            and any(
+                permissions.value
+                for permissions in channel.overwrites_for(
+                    rules_accepted_role
+                ).pair()
+            )
+        ]
+        marker_permissions_ready = (
+            rules_accepted_role is not None
+            and not rules_accepted_role.managed
+            and rules_accepted_role.permissions == discord.Permissions.none()
+            and not acceptance_role_overwrites
+        )
         hierarchy_ready = (
             bot_member is not None
             and bot_member.guild_permissions.manage_roles
@@ -596,11 +876,24 @@ class OnboardingCog(
                 and not role.managed
                 and role < bot_member.top_role
                 for name, role in configured_roles.items()
-                if name in {"Participant", "Sponsor", "Under Review", "Visitor"}
+                if name
+                in {
+                    "Rules Accepted",
+                    "Participant",
+                    "Sponsor",
+                    "Under Review",
+                    "Visitor",
+                }
             )
         )
         channel_permissions_ready = (
-            role_permissions is not None
+            rules_permissions is not None
+            and rules_permissions.view_channel
+            and rules_permissions.send_messages
+            and rules_permissions.embed_links
+            and rules_permissions.attach_files
+            and rules_permissions.read_message_history
+            and role_permissions is not None
             and role_permissions.view_channel
             and role_permissions.send_messages
             and role_permissions.embed_links
@@ -613,10 +906,15 @@ class OnboardingCog(
             and review_permissions.read_message_history
         )
         ready = (
-            isinstance(role_channel, discord.TextChannel)
+            isinstance(rules_channel, discord.TextChannel)
+            and isinstance(role_channel, discord.TextChannel)
             and isinstance(review_channel, discord.TextChannel)
+            and RULES_IMAGE.is_file()
             and ROLE_WELCOME_IMAGE.is_file()
+            and rules_content_ready
             and roles_ready
+            and not access_without_acceptance
+            and marker_permissions_ready
             and hierarchy_ready
             and channel_permissions_ready
             and entry_visibility_ready
@@ -636,6 +934,8 @@ class OnboardingCog(
         embed.add_field(
             name="Channels",
             value=(
+                "Rules: "
+                f"{'found' if isinstance(rules_channel, discord.TextChannel) else 'missing'}\n"
                 "Role selection: "
                 f"{'found' if isinstance(role_channel, discord.TextChannel) else 'missing'}\n"
                 "Sponsor review: "
@@ -652,6 +952,18 @@ class OnboardingCog(
             inline=True,
         )
         embed.add_field(
+            name="Acceptance gate",
+            value=(
+                f"Access members missing acceptance: {len(access_without_acceptance)}\n"
+                f"Marker channel overwrites: {len(acceptance_role_overwrites)}\n"
+                "Marker server permissions: "
+                f"{'none' if marker_permissions_ready else 'needs attention'}\n"
+                f"Rules content: {'valid' if rules_content_ready else 'missing/invalid'}"
+                + (f"\nRole error: {rules_role_error}" if rules_role_error else "")
+            ),
+            inline=False,
+        )
+        embed.add_field(
             name="New-member visibility",
             value=(
                 f"Entry channels visible to @everyone: {len(visible_entry_channels)}/4\n"
@@ -665,7 +977,8 @@ class OnboardingCog(
             value=(
                 f"Participant backend: {backend_status}\n"
                 f"Website signup URL: {'valid' if website_ready else 'missing/invalid'}\n"
-                f"Role artwork: {'found' if ROLE_WELCOME_IMAGE.is_file() else 'missing'}"
+                f"Role artwork: {'found' if ROLE_WELCOME_IMAGE.is_file() else 'missing'}\n"
+                f"Rules artwork: {'found' if RULES_IMAGE.is_file() else 'missing'}"
             ),
             inline=False,
         )
@@ -680,6 +993,50 @@ class OnboardingCog(
             inline=False,
         )
         await interaction.edit_original_response(embed=embed)
+
+    async def ensure_rules_panel(
+        self,
+        channel: discord.TextChannel,
+    ) -> discord.Message:
+        if not RULES_IMAGE.is_file():
+            raise OnboardingSetupError(
+                f"Rules artwork was not found at {RULES_IMAGE}."
+            )
+        try:
+            rules = load_server_rules()
+        except ServerRulesError as error:
+            raise OnboardingSetupError(str(error)) from error
+
+        panel: discord.Message | None = None
+        async for message in channel.history(limit=50):
+            if self.bot.user is None or message.author.id != self.bot.user.id:
+                continue
+            if any(
+                (embed.footer.text or "").startswith(RULES_PANEL_PREFIX)
+                for embed in message.embeds
+                if embed.footer is not None
+            ):
+                panel = message
+                break
+
+        filename = RULES_IMAGE.name
+        embed = rules_panel_embed(rules, filename)
+        view = RulesAcceptanceView(self)
+        if panel is not None:
+            if any(attachment.filename == filename for attachment in panel.attachments):
+                await panel.edit(embed=embed, view=view)
+            else:
+                await panel.edit(
+                    embed=embed,
+                    view=view,
+                    attachments=[discord.File(RULES_IMAGE, filename=filename)],
+                )
+            return panel
+        return await channel.send(
+            embed=embed,
+            view=view,
+            file=discord.File(RULES_IMAGE, filename=filename),
+        )
 
     async def ensure_role_panel(
         self,
@@ -800,16 +1157,40 @@ class OnboardingCog(
         interaction: discord.Interaction,
     ) -> discord.Member | None:
         if (
-            interaction.channel_id == ROLE_CHANNEL_ID
-            and interaction.guild is not None
-            and isinstance(interaction.user, discord.Member)
+            interaction.channel_id != ROLE_CHANNEL_ID
+            or interaction.guild is None
+            or not isinstance(interaction.user, discord.Member)
         ):
-            return interaction.user
-        await interaction.response.send_message(
-            "Role-selection controls only work in Cody's configured role channel.",
-            ephemeral=True,
-        )
-        return None
+            await interaction.response.send_message(
+                "Role-selection controls only work in Cody's configured role channel.",
+                ephemeral=True,
+            )
+            return None
+
+        try:
+            accepted_role = find_rules_accepted_role(interaction.guild)
+        except OnboardingSetupError as error:
+            LOGGER.error("Rules acceptance role resolution failed: %s", error)
+            await interaction.response.send_message(
+                "Cody's Rules Accepted role setup needs Admin attention.",
+                ephemeral=True,
+            )
+            return None
+        if accepted_role is None:
+            await interaction.response.send_message(
+                "Cody's Rules Accepted role has not been configured yet.",
+                ephemeral=True,
+            )
+            return None
+        if not self._member_has_role(interaction.user, accepted_role.id):
+            await interaction.response.send_message(
+                "You must read and accept the server rules before choosing an "
+                "access role.",
+                view=rules_channel_link_view(interaction.guild.id),
+                ephemeral=True,
+            )
+            return None
+        return interaction.user
 
     @staticmethod
     async def _resolve_member(
@@ -829,6 +1210,10 @@ class OnboardingCog(
 
     def _role_channel(self) -> discord.TextChannel | None:
         channel = self.bot.get_channel(ROLE_CHANNEL_ID)
+        return channel if isinstance(channel, discord.TextChannel) else None
+
+    def _rules_channel(self) -> discord.TextChannel | None:
+        channel = self.bot.get_channel(RULES_CHANNEL_ID)
         return channel if isinstance(channel, discord.TextChannel) else None
 
     def _review_channel(self) -> discord.TextChannel | None:

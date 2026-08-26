@@ -10,11 +10,13 @@ import discord
 
 from cody.config import ROLE_CHANNEL_ID, RULES_CHANNEL_ID
 from cody.features.welcome.models import SponsorDecision
+from cody.features.welcome.rules import ServerRules
 from cody.shared.colors import CodyColor
 from cody.shared.components import channel_link_button, cody_embed
 
 
 ROLE_PANEL_MARKER = "CODY // ACCESS REGISTRY"
+RULES_PANEL_PREFIX = "CODY // SERVER RULES // VERSION"
 SPONSOR_REVIEW_PREFIX = "CODY // SPONSOR REVIEW"
 SPONSOR_REVIEW_PATTERN = re.compile(
     rf"^{re.escape(SPONSOR_REVIEW_PREFIX)} // PENDING // USER ([1-9][0-9]{{0,19}})$"
@@ -22,6 +24,8 @@ SPONSOR_REVIEW_PATTERN = re.compile(
 
 
 class OnboardingController(Protocol):
+    async def accept_rules(self, interaction: discord.Interaction) -> None: ...
+
     async def select_participant(self, interaction: discord.Interaction) -> None: ...
 
     async def select_sponsor(self, interaction: discord.Interaction) -> None: ...
@@ -49,11 +53,11 @@ def welcome_view(
     )
     directives = discord.ui.TextDisplay(
         "**INITIAL DIRECTIVES**\n"
-        f"{member.mention}, review the rules, then choose your access role."
+        f"{member.mention}, read and accept the rules, then choose your access role."
     )
     navigation = discord.ui.ActionRow(
         channel_link_button(
-            "Rules",
+            "Read & Accept Rules",
             guild_id=member.guild.id,
             channel_id=RULES_CHANNEL_ID,
         ),
@@ -80,8 +84,8 @@ def role_panel_embed(image_filename: str) -> discord.Embed:
     embed = cody_embed(
         title="ACCESS REGISTRY",
         description=(
-            "Choose the option that describes how you are joining ETH Battlecode. "
-            "Cody will configure your server access."
+            "After accepting the server rules, choose the option that describes "
+            "how you are joining ETH Battlecode. Cody will configure your access."
         ),
         color=CodyColor.SYSTEM,
     )
@@ -109,6 +113,47 @@ def role_panel_embed(image_filename: str) -> discord.Embed:
     embed.set_image(url=f"attachment://{image_filename}")
     embed.set_footer(text=ROLE_PANEL_MARKER)
     return embed
+
+
+def rules_panel_embed(rules: ServerRules, image_filename: str) -> discord.Embed:
+    embed = cody_embed(
+        title=rules.title,
+        description=(
+            f"{rules.introduction}\n\n"
+            f"**Version {rules.version} · Updated {rules.updated}**"
+        ),
+        color=CodyColor.SYSTEM,
+    )
+    embed.set_image(url=f"attachment://{image_filename}")
+    for rule in rules.rules:
+        embed.add_field(name=rule.heading, value=rule.text, inline=False)
+    embed.add_field(
+        name="Acceptance",
+        value=rules.acknowledgement,
+        inline=False,
+    )
+    embed.set_footer(text=f"{RULES_PANEL_PREFIX} {rules.version}")
+    return embed
+
+
+class RulesAcceptanceView(discord.ui.View):
+    def __init__(self, controller: OnboardingController) -> None:
+        super().__init__(timeout=None)
+        self.controller = controller
+
+    @discord.ui.button(
+        label="Accept Rules",
+        style=discord.ButtonStyle.success,
+        emoji="✅",
+        custom_id="cody:onboarding:rules:accept",
+    )
+    async def accept(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        del button
+        await self.controller.accept_rules(interaction)
 
 
 class RoleSelectionView(discord.ui.View):
@@ -273,6 +318,30 @@ def website_signup_view(url: str) -> discord.ui.View | None:
             label="Open ETH Battlecode Website",
             style=discord.ButtonStyle.link,
             url=url,
+        )
+    )
+    return view
+
+
+def role_channel_link_view(guild_id: int) -> discord.ui.View:
+    view = discord.ui.View()
+    view.add_item(
+        channel_link_button(
+            "Choose Access Role",
+            guild_id=guild_id,
+            channel_id=ROLE_CHANNEL_ID,
+        )
+    )
+    return view
+
+
+def rules_channel_link_view(guild_id: int) -> discord.ui.View:
+    view = discord.ui.View()
+    view.add_item(
+        channel_link_button(
+            "Read & Accept Rules",
+            guild_id=guild_id,
+            channel_id=RULES_CHANNEL_ID,
         )
     )
     return view

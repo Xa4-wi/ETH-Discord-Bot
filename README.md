@@ -124,10 +124,13 @@ Prefer short interface-style titles such as `ARRIVAL REGISTERED`, `TEAM REGISTER
 
 Administrators can run `/test_welcome` inside the server to send the real welcome card using their own member profile. The command invokes the same `send_welcome_message` function as the member-join event, so the test and production behavior stay identical. Its status response is visible only to the administrator. Welcome cards are generated in memory and are not stored on disk.
 
-The welcome message now directs members to Rules and the Role-selection channel.
-The persistent access panel offers Participant, Sponsor, and Visitor choices and
-uses the supplied `role-welcome.png` artwork. Run `/onboarding setup` to create or
-refresh it and `/onboarding status` to audit its backend, channels, public
+The welcome message now directs members to read and accept Rules before using
+the Role-selection channel. Cody publishes the complete versioned behavior
+rules with the supplied `rules-image.png` artwork and records acceptance through
+a zero-permission `Rules Accepted` marker role. The persistent access panel then
+offers Participant, Sponsor, and Visitor choices using `role-welcome.png`. Run
+`/onboarding setup` to create or refresh both panels and validate the marker role, and
+`/onboarding status` to audit its backend, channels, public
 visibility, role hierarchy, and permissions. The status command performs a real
 `participant.get` contract probe without displaying participant data. Both
 commands are Admin-only.
@@ -154,8 +157,10 @@ Runtime artwork uses descriptive, role-based names:
 - `assets/branding/cody-icon.png` — Cody's master icon.
 - `assets/branding/cody-banner.png` — current master Battlecode banner.
 - `assets/branding/role-welcome.png` — centered three-role onboarding artwork.
+- `assets/branding/rules-image.png` — centered server-rules panel artwork.
 - `assets/welcome/umbral-background.png` — background consumed by the welcome renderer.
 - `assets/welcome/welcome_quotes.json` — randomized welcome-card quotes.
+- `content/community/server_rules.json` — validated, versioned server behavior rules.
 - `assets/fonts/play-display.ttf` — display/body typeface.
 - `assets/fonts/share-tech-system.ttf` — system-interface typeface.
 - `docs/assets/cody-icon.png` and `docs/assets/cody-banner.png` — website-only copies.
@@ -225,6 +230,12 @@ that public visibility but deliberately does not rewrite permission overwrites.
 | Role selection | `1542168230896996352` |
 | Sponsor review (staff only) | `1542176692791939232` |
 
+Every role selection first requires the `Rules Accepted` marker. Acceptance
+itself grants no channel access. Cody uses role `1542198825756794971` by default
+and fails closed if it is missing, managed, has server permissions, or has any
+channel overwrite. The later access role performs the unlock. The full editable rule text is stored in
+`content/community/server_rules.json` and rendered in the Rules channel.
+
 Participant selection uses the authenticated `participant.get` backend action.
 Set `CODY_BACKEND_ENDPOINT`, `CODY_BACKEND_SERVICE_TOKEN`, and the official
 `CODY_WEBSITE_SIGNUP_URL` (HTTPS). Unlinked members receive the website link;
@@ -235,8 +246,13 @@ to Visitor. Visitor selection grants Visitor immediately. The four access roles
 are mutually exclusive; unrelated roles are preserved.
 
 Cody must have Manage Roles and sit above Participant, Sponsor, Under Review,
-and Visitor. Full permission setup, failure behavior, IDs, environment overrides,
-and acceptance checks are in
+Visitor, and Rules Accepted. Existing access-role members are not silently
+marked accepted; `/onboarding status` counts them for deliberate migration.
+`/onboarding enforce_rules` previews the affected count, and `confirm:true`
+reversibly removes only their Cody access roles so they must accept and select
+again.
+Full permission setup, rule-update behavior, IDs, environment overrides, and
+acceptance checks are in
 [`cody/features/welcome/README.md`](cody/features/welcome/README.md).
 
 ## Support tickets

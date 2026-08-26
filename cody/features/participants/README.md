@@ -19,7 +19,8 @@ Website Discord OAuth and the Main Backend remain the only source of participant
 linkage. The active Welcome feature now has a narrow typed
 `BackendParticipantLinkProvider`: it calls `participant.get` only when a member
 presses the Participant onboarding button and uses a valid result to assign the
-local Discord Participant role. It does not display or persist the profile.
+local Discord Participant role, but only after the Welcome feature has recorded
+server-rule acceptance. It does not display or persist the profile.
 
 ## Intended scope
 

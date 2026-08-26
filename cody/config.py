@@ -1,5 +1,7 @@
 """Environment and repository configuration for Cody."""
 
+from __future__ import annotations
+
 import math
 import os
 from pathlib import Path
@@ -94,6 +96,10 @@ VISITOR_ROLE_ID = _role_id(
     "CODY_VISITOR_ROLE_ID",
     1542164969796272229,
 )
+RULES_ACCEPTED_ROLE_ID = _role_id(
+    "CODY_RULES_ACCEPTED_ROLE_ID",
+    1542198825756794971,
+)
 ADMIN_ROLE_ID = _role_id(
     "CODY_ADMIN_ROLE_ID",
     1540821890510229571,
@@ -184,6 +190,8 @@ BACKEND_ALLOW_INSECURE_LOCALHOST = _boolean(
 WELCOME_BACKGROUND = PROJECT_ROOT / "assets" / "welcome" / "umbral-background.png"
 WELCOME_QUOTES = PROJECT_ROOT / "assets" / "welcome" / "welcome_quotes.json"
 ROLE_WELCOME_IMAGE = PROJECT_ROOT / "assets" / "branding" / "role-welcome.png"
+RULES_IMAGE = PROJECT_ROOT / "assets" / "branding" / "rules-image.png"
+SERVER_RULES = PROJECT_ROOT / "content" / "community" / "server_rules.json"
 FONT_DIR = PROJECT_ROOT / "assets" / "fonts"
 FONT_DISPLAY = FONT_DIR / "play-display.ttf"
 FONT_MONO = FONT_DIR / "share-tech-system.ttf"

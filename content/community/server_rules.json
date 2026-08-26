@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "updated": "2026-08-26",
+  "title": "ETH Battlecode Server Rules",
+  "introduction": "ETH Battlecode is a collaborative competition community. These rules apply to messages, voice channels, direct contact originating here, profiles, uploads, tickets, and interactions with Cody.",
+  "rules": [
+    {
+      "heading": "1. Respect every member",
+      "text": "Treat participants, visitors, sponsors, organisers, and staff with respect. Harassment, bullying, intimidation, targeted hostility, hate speech, slurs, discriminatory conduct, threats, and encouragement of self-harm are prohibited."
+    },
+    {
+      "heading": "2. Keep the community safe and appropriate",
+      "text": "Do not post sexual, pornographic, graphically violent, or otherwise shocking content. Do not glorify illegal activity or create an unsafe environment. Content and profile elements visible in this server must remain appropriate for a broad student community."
+    },
+    {
+      "heading": "3. Protect privacy and identity",
+      "text": "Do not expose, request, or distribute another person's private information, private messages, recordings, images, or location without clear permission. Doxxing, impersonation, stalking, and deceptive identity claims are prohibited."
+    },
+    {
+      "heading": "4. No spam, scams, or harmful material",
+      "text": "Do not flood channels, mass-mention users, send unsolicited advertising, run giveaways without approval, or distribute scams, phishing links, malware, credential requests, or intentionally misleading downloads."
+    },
+    {
+      "heading": "5. Use channels for their intended purpose",
+      "text": "Follow channel names, topics, pinned instructions, and organiser directions. Keep discussions relevant, use threads where requested, avoid disruptive voice behavior, and move personal disputes out of public channels."
+    },
+    {
+      "heading": "6. Preserve competitive integrity",
+      "text": "Do not cheat, collude, manipulate results, abuse alternate accounts, sabotage other teams, exploit infrastructure, or gain unauthorized access to submissions, systems, match data, or private team areas. Report suspected vulnerabilities privately to organisers and do not exploit them."
+    },
+    {
+      "heading": "7. Secure accounts and credentials",
+      "text": "Never share Discord, website, API, bot, or service tokens. Do not request another member's credentials or bypass access controls. You are responsible for activity from your account and must promptly report a suspected compromise."
+    },
+    {
+      "heading": "8. Roles and access must be accurate",
+      "text": "Select the role that truthfully represents your involvement. Do not evade Sponsor review, claim another participant's linked identity, share restricted material, or use access granted to one role for an unrelated person or organization."
+    },
+    {
+      "heading": "9. Sponsors and promotions",
+      "text": "Sponsors must identify their affiliation honestly. Recruiting, commercial promotion, data collection, surveys, and direct solicitation require organiser approval and must remain within the channels and scope provided by staff."
+    },
+    {
+      "heading": "10. Work with moderation",
+      "text": "Follow reasonable instructions from Admins and Organisers. Do not evade warnings, timeouts, role restrictions, or bans. Report rule violations through the designated support route instead of starting public accusations or retaliation."
+    },
+    {
+      "heading": "11. Follow Discord policy and applicable law",
+      "text": "Discord's Terms of Service and Community Guidelines apply in addition to these server rules. Content or conduct that violates applicable law or Discord policy is not allowed even when it is not named explicitly above."
+    },
+    {
+      "heading": "12. Enforcement and updates",
+      "text": "Organisers may remove content, restrict access, issue warnings or timeouts, remove roles, or ban accounts according to severity and context. Serious safety, security, or integrity violations may result in immediate removal. Material rule updates will be announced."
+    }
+  ],
+  "acknowledgement": "By selecting Accept Rules, you confirm that you have read these rules and agree to follow them. Acceptance does not itself unlock the server; you must then select Participant, Sponsor, or Visitor access."
+}
