@@ -11,7 +11,7 @@ separate from unrelated features. Every feature folder must contain a
 | --- | --- | --- | --- | --- |
 | Monitoring | Active | Yes | `area: infrastructure`, `area: admin` | [`monitoring/README.md`](monitoring/README.md) |
 | System | Active | Yes | `area: discord` | [`system/README.md`](system/README.md) |
-| Welcome | Active | Yes | `area: welcome` | [`welcome/README.md`](welcome/README.md) |
+| Welcome and access onboarding | Active | Yes | `area: welcome`, `area: backend`, `area: discord` | [`welcome/README.md`](welcome/README.md) |
 | Server statistics | Active | Yes | `area: discord`, `area: backend` | [`server_stats/README.md`](server_stats/README.md) |
 | Tickets | Active | Yes | `area: discord`, `area: backend` | [`tickets/README.md`](tickets/README.md) |
 | Participants | Planned | No | `area: participants`, `area: backend` | [`participants/README.md`](participants/README.md) |

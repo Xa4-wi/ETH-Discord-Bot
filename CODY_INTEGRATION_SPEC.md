@@ -3,7 +3,7 @@
 | Document property | Value |
 | --- | --- |
 | Contract major version | `1` |
-| Repository document revision | `2.2` |
+| Repository document revision | `2.3` |
 | Architecture boundary | **Locked** |
 | Wire/action schemas | **Draft until backend review** |
 | Ticket backend database | **PostgreSQL; backend access only** |
@@ -63,6 +63,7 @@ feature is available today.
 | Capability | Current repository state | V1 target |
 | --- | --- | --- |
 | Shared backend client | Implemented but inactive without configuration | One long-lived authenticated integration boundary |
+| Access onboarding | Discord panel, Visitor/Sponsor flow, and `participant.get` gateway implemented; Participant path inactive without production backend configuration | Backend-verified Participant role plus Discord-local Sponsor review and Visitor access |
 | Participant profile | No Discord feature | Read-only `participant.get` |
 | Teams | Planned skeleton | Read-only team and member information |
 | Submissions | No Discord feature | Read-only metadata; never source code |
@@ -158,7 +159,9 @@ stores a lossless association from `discord_user_id` to at most one participant
 and resolves that participant's team and permissions.
 
 Cody does not implement login, registration, verification codes, account
-linking, or team authentication.
+linking, or team authentication. Cody's onboarding panel may direct an unlinked
+actor to the official HTTPS website, but the OAuth/linking flow remains entirely
+outside Discord.
 
 ### 5.2 Actor attestation — Locked
 
@@ -191,10 +194,14 @@ Discord roles as proof of competition identity.
 ### 5.3 Discord roles — Locked carve-out
 
 Discord roles MAY gate local diagnostics, command visibility, community-role
-statistics, and temporary ticket controls. They MUST NOT grant access to
+statistics, Discord channel visibility, access onboarding, and temporary ticket
+controls. A Participant role MAY be assigned only after the Main Backend returns
+a valid `participant.get` result for the invoking Discord actor. The resulting
+role is still presentation/channel-routing state and MUST NOT grant access to
 participant, team, submission, match, ranking, event, or future backend ticket
-data. A backend-facing ticket mutation forwards the staff actor ID and the
-backend authorizes it independently.
+data by itself. Every later backend request independently forwards the actor ID,
+and the backend authorizes it. A backend-facing ticket mutation similarly
+forwards the staff actor ID and the backend authorizes it independently.
 
 ### 5.4 Service authentication — Proposed
 
@@ -400,9 +407,10 @@ private resource when revealing existence would leak information.
 
 ## 10. Domain contracts
 
-Action examples below are **Proposed wire shapes**, not implemented Discord
-features. Backend domain IDs are opaque strings no longer than 128 bytes; Cody
-MUST NOT infer meaning from prefixes.
+Action examples below are **Proposed wire shapes** until accepted by the backend.
+Client-side use does not mean the production endpoint is deployed. Backend
+domain IDs are opaque strings no longer than 128 bytes; Cody MUST NOT infer
+meaning from prefixes.
 
 ### 10.1 Participant
 
@@ -417,7 +425,14 @@ MUST NOT infer meaning from prefixes.
 ```
 
 The backend guarantees at most one participant per Discord ID and filters all
-returned fields. Cody does not resolve participants locally.
+returned fields. Cody does not resolve participants locally. The active welcome
+onboarding gateway uses this empty-payload action only to decide whether the
+invoking member may receive the local Participant role. It strictly requires a
+non-empty `participant_id` of at most 128 UTF-8 bytes, a non-empty
+`display_name`, and an optional valid `team_id`; it does not display or persist
+the response. `USER_NOT_LINKED` and `USER_NOT_FOUND` fail closed and direct the
+member to website Discord OAuth. Transport, protocol, authentication, and all
+other backend errors fail closed without assigning Participant.
 
 ### 10.2 Teams
 
@@ -835,9 +850,10 @@ acceptable. A user-facing failure MAY include the request reference.
 
 Discord IDs are pseudonymous operational data. Access and retention for the
 operations-log channel and hosted terminal logs remain an organizational
-**Open** decision. Current local ticket lifecycle events include member, staff,
-and channel IDs in the restricted operations channel; this is documented
-transitional behavior, not permission to add ticket content.
+**Open** decision. Current local ticket and access-onboarding lifecycle events
+include member, reviewer, message, and channel IDs in the restricted operations
+channel; this is documented transitional behavior, not permission to add ticket
+content or backend participant fields.
 
 ## 16. User-safe failure behavior
 
@@ -866,6 +882,7 @@ the backend's diagnostic `error.message` verbatim.
 | Ratings, ranks, layers, leaderboard | Main Backend/ranking subsystem |
 | Event state | Main Backend |
 | Durable ticket intake/status | Main Backend when integration is enabled |
+| Participant/Sponsor/Under Review/Visitor Discord roles and pending Sponsor review card | Cody/Discord, local and non-canonical |
 | Temporary Discord ticket channel | Cody/Discord, non-canonical |
 | Read cache | Cody, non-canonical and disposable |
 
@@ -923,6 +940,7 @@ Explicit exclusions:
 These block production activation of the affected provider/action:
 
 - production endpoint host and deployment environments;
+- official public HTTPS signup/sign-in URL for unlinked onboarding members;
 - bearer versus OAuth2 client credentials or mTLS, rotation owner, and scopes;
 - final timeout, concurrency, retry, rate-limit, and size budgets;
 - exact action payload/response schemas and optional/null fields;

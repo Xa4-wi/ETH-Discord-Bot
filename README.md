@@ -71,6 +71,9 @@ Cody authorizes application commands by Discord role ID:
 | Access level | Default role ID | Environment override |
 | --- | ---: | --- |
 | Participant | `1541112817476702238` | `CODY_PARTICIPANT_ROLE_ID` |
+| Sponsor | `1542162836791361576` | `CODY_SPONSOR_ROLE_ID` |
+| Sponsor — Under Review | `1542164526022004877` | `CODY_SPONSOR_UNDER_REVIEW_ROLE_ID` |
+| Visitor | `1542164969796272229` | `CODY_VISITOR_ROLE_ID` |
 | Admin | `1540821890510229571` | `CODY_ADMIN_ROLE_ID` |
 | Organiser | `1540821070213292125` | `CODY_ORGANIZER_ROLE_ID` |
 
@@ -121,6 +124,14 @@ Prefer short interface-style titles such as `ARRIVAL REGISTERED`, `TEAM REGISTER
 
 Administrators can run `/test_welcome` inside the server to send the real welcome card using their own member profile. The command invokes the same `send_welcome_message` function as the member-join event, so the test and production behavior stay identical. Its status response is visible only to the administrator. Welcome cards are generated in memory and are not stored on disk.
 
+The welcome message now directs members to Rules and the Role-selection channel.
+The persistent access panel offers Participant, Sponsor, and Visitor choices and
+uses the supplied `role-welcome.png` artwork. Run `/onboarding setup` to create or
+refresh it and `/onboarding status` to audit its backend, channels, public
+visibility, role hierarchy, and permissions. The status command performs a real
+`participant.get` contract probe without displaying participant data. Both
+commands are Admin-only.
+
 ## Repository structure
 
 - `main.py` is the only executable entry point.
@@ -142,6 +153,7 @@ Runtime artwork uses descriptive, role-based names:
 
 - `assets/branding/cody-icon.png` — Cody's master icon.
 - `assets/branding/cody-banner.png` — current master Battlecode banner.
+- `assets/branding/role-welcome.png` — centered three-role onboarding artwork.
 - `assets/welcome/umbral-background.png` — background consumed by the welcome renderer.
 - `assets/welcome/welcome_quotes.json` — randomized welcome-card quotes.
 - `assets/fonts/play-display.ttf` — display/body typeface.
@@ -195,6 +207,37 @@ match infrastructure. Teams, matches, submissions, rankings, and event state
 are read-only from Cody's perspective. See the complete current/target matrix,
 wire format, ticket transition plan, and open production decisions in
 [`CODY_INTEGRATION_SPEC.md`](CODY_INTEGRATION_SPEC.md).
+
+## Welcome access onboarding
+
+New members should initially see the member-count voice channel plus the
+Welcome, Rules, and Role-selection text channels. Although the objective is
+often described as “three channels,” these IDs define four visible entry
+resources. Configure `@everyone` to see those four and deny every other
+category/channel until Cody assigns an access role; `/onboarding status` audits
+that public visibility but deliberately does not rewrite permission overwrites.
+
+| Channel | Default ID |
+| --- | ---: |
+| Member-count VC | `1541109424796602418` |
+| Welcome | `1540841975320813649` |
+| Rules | `1540846388328275990` |
+| Role selection | `1542168230896996352` |
+| Sponsor review (staff only) | `1542176692791939232` |
+
+Participant selection uses the authenticated `participant.get` backend action.
+Set `CODY_BACKEND_ENDPOINT`, `CODY_BACKEND_SERVICE_TOKEN`, and the official
+`CODY_WEBSITE_SIGNUP_URL` (HTTPS). Unlinked members receive the website link;
+only a valid backend participant response grants Participant. Sponsor selection
+grants Under Review immediately and creates a persistent staff decision in the
+Sponsor Review channel. Admins and Organisers can approve to Sponsor or reject
+to Visitor. Visitor selection grants Visitor immediately. The four access roles
+are mutually exclusive; unrelated roles are preserved.
+
+Cody must have Manage Roles and sit above Participant, Sponsor, Under Review,
+and Visitor. Full permission setup, failure behavior, IDs, environment overrides,
+and acceptance checks are in
+[`cody/features/welcome/README.md`](cody/features/welcome/README.md).
 
 ## Support tickets
 

@@ -32,6 +32,15 @@ def is_ticket_staff(user: discord.User | discord.Member) -> bool:
     )
 
 
+def is_sponsor_reviewer(user: discord.User | discord.Member) -> bool:
+    """Return whether a member may approve or reject sponsor access."""
+
+    return member_has_role(user, ADMIN_ROLE_ID) or member_has_role(
+        user,
+        ORGANIZER_ROLE_ID,
+    )
+
+
 async def participant_access_check(interaction: discord.Interaction) -> bool:
     """Allow participants and admins to use participant-facing commands."""
 

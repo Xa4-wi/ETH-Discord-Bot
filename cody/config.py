@@ -73,11 +73,26 @@ def _nonnegative_int(environment_name: str, default: int) -> int:
 
 WELCOME_CHANNEL_ID = _channel_id("CODY_WELCOME_CHANNEL_ID", 1540841975320813649)
 RULES_CHANNEL_ID = _channel_id("CODY_RULES_CHANNEL_ID", 1540846388328275990)
-WORLD_CHANNEL_ID = _channel_id("CODY_WORLD_CHANNEL_ID", 1540846427377373284)
-
+ROLE_CHANNEL_ID = _channel_id("CODY_ROLE_CHANNEL_ID", 1542168230896996352)
+SPONSOR_REVIEW_CHANNEL_ID = _channel_id(
+    "CODY_SPONSOR_REVIEW_CHANNEL_ID",
+    1542176692791939232,
+)
 PARTICIPANT_ROLE_ID = _role_id(
     "CODY_PARTICIPANT_ROLE_ID",
     1541112817476702238,
+)
+SPONSOR_ROLE_ID = _role_id(
+    "CODY_SPONSOR_ROLE_ID",
+    1542162836791361576,
+)
+SPONSOR_UNDER_REVIEW_ROLE_ID = _role_id(
+    "CODY_SPONSOR_UNDER_REVIEW_ROLE_ID",
+    1542164526022004877,
+)
+VISITOR_ROLE_ID = _role_id(
+    "CODY_VISITOR_ROLE_ID",
+    1542164969796272229,
 )
 ADMIN_ROLE_ID = _role_id(
     "CODY_ADMIN_ROLE_ID",
@@ -168,6 +183,7 @@ BACKEND_ALLOW_INSECURE_LOCALHOST = _boolean(
 
 WELCOME_BACKGROUND = PROJECT_ROOT / "assets" / "welcome" / "umbral-background.png"
 WELCOME_QUOTES = PROJECT_ROOT / "assets" / "welcome" / "welcome_quotes.json"
+ROLE_WELCOME_IMAGE = PROJECT_ROOT / "assets" / "branding" / "role-welcome.png"
 FONT_DIR = PROJECT_ROOT / "assets" / "fonts"
 FONT_DISPLAY = FONT_DIR / "play-display.ttf"
 FONT_MONO = FONT_DIR / "share-tech-system.ttf"
@@ -205,3 +221,9 @@ def get_backend_service_token() -> str:
             "CODY_BACKEND_SERVICE_TOKEN is required for the Main Backend provider."
         )
     return token
+
+
+def get_website_signup_url() -> str:
+    """Return the public website URL used when a Discord account is unlinked."""
+
+    return os.getenv("CODY_WEBSITE_SIGNUP_URL", "").strip()

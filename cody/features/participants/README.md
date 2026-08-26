@@ -14,9 +14,12 @@ to their account without making Discord itself an identity database.
 
 ## Current implementation
 
-There is no participant command, service, provider, model, or loaded extension.
-Website Discord OAuth and the Main Backend remain the only planned source of
-participant linkage.
+There is no participant-profile command or loaded participant extension.
+Website Discord OAuth and the Main Backend remain the only source of participant
+linkage. The active Welcome feature now has a narrow typed
+`BackendParticipantLinkProvider`: it calls `participant.get` only when a member
+presses the Participant onboarding button and uses a valid result to assign the
+local Discord Participant role. It does not display or persist the profile.
 
 ## Intended scope
 
@@ -30,6 +33,9 @@ participant linkage.
 - Follow [`CODY_INTEGRATION_SPEC.md`](../../../CODY_INTEGRATION_SPEC.md).
 - Forward `interaction.user.id` plus guild/interaction context losslessly.
 - The Main Backend resolves linkage and authorizes/filters the profile.
+- The Welcome feature's role-verification use is documented in
+  [`../welcome/README.md`](../welcome/README.md); shared participant profile UI
+  remains owned by this planned feature.
 - Discord names and roles are presentation/UX inputs, never identity authority.
 - The feature service uses `cody.integrations.backend`; no raw HTTP in cogs/views.
 
