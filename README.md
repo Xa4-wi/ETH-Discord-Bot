@@ -1,4 +1,4 @@
-# ETH Discord Bot
+# ETH Discord Bot Test
 
 The authoritative architecture and API boundary between Cody and the official
 website backend is [`CODY_INTEGRATION_SPEC.md`](CODY_INTEGRATION_SPEC.md).
